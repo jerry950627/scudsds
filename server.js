@@ -157,7 +157,9 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // 暫時設為 false 以解決 Render HTTPS 問題
+    httpOnly: true,
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
@@ -174,17 +176,33 @@ app.get('/', (req, res) => {
 
 // 登入 API
 app.post('/auth/login', (req, res) => {
+  console.log('登入請求:', { username: req.body.username, hasPassword: !!req.body.password });
   const { username, password } = req.body;
-  if (!username || !password)
+  if (!username || !password) {
+    console.log('登入失敗: 缺少帳號或密碼');
     return res.status(400).json({ success: false, message: '請輸入帳號和密碼' });
+  }
 
   db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
-    if (err) return res.status(500).json({ success: false, message: '伺服器錯誤' });
-    if (!user) return res.status(401).json({ success: false, message: '帳號或密碼錯誤' });
+    if (err) {
+      console.error('資料庫查詢錯誤:', err);
+      return res.status(500).json({ success: false, message: '伺服器錯誤' });
+    }
+    if (!user) {
+      console.log('登入失敗: 用戶不存在 -', username);
+      return res.status(401).json({ success: false, message: '帳號或密碼錯誤' });
+    }
 
+    console.log('找到用戶:', { id: user.id, username: user.username, role: user.role });
     bcrypt.compare(password, user.password_hash, (err, isMatch) => {
-      if (err) return res.status(500).json({ success: false, message: '伺服器錯誤' });
-      if (!isMatch) return res.status(401).json({ success: false, message: '帳號或密碼錯誤' });
+      if (err) {
+        console.error('密碼比對錯誤:', err);
+        return res.status(500).json({ success: false, message: '伺服器錯誤' });
+      }
+      if (!isMatch) {
+        console.log('登入失敗: 密碼錯誤 -', username);
+        return res.status(401).json({ success: false, message: '帳號或密碼錯誤' });
+      }
 
       req.session.user = {
         id: user.id,
@@ -193,6 +211,8 @@ app.post('/auth/login', (req, res) => {
         student_id: user.student_id,
         role: user.role
       };
+      
+      console.log('登入成功:', { username: user.username, sessionId: req.sessionID });
       
       // 記錄登入操作
       logOperation(
