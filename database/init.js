@@ -32,35 +32,68 @@ db.serialize(() => {
     }
     console.log('使用者資料表已確認/建立');
 
-    // （可選）建立預設管理員
-    db.get("SELECT id FROM users WHERE username = 'admin'", (err, row) => {
-      if (err) {
-        console.error('檢查管理員帳號錯誤:', err);
-        return;
+    // 建立預設帳號
+    const defaultUsers = [
+      {
+        name: '管理員',
+        student_id: 'ADMIN001',
+        username: 'admin',
+        password: 'admin123',
+        role: 'admin'
+      },
+      {
+        name: '學會成員',
+        student_id: '13173149',
+        username: 'scuds13173149',
+        password: '5028',
+        role: 'user'
       }
-      if (!row) {
-        const hashedPassword = bcrypt.hashSync('admin123', 10);
-        db.run(
-          "INSERT INTO users (name, student_id, username, password_hash, role) VALUES (?, ?, ?, ?, ?)",
-          ['管理員', 'ADMIN001', 'admin', hashedPassword, 'admin'],
-          (err) => {
-            if (err) console.error('建立管理員帳號錯誤:', err);
-            else console.log('已建立預設管理員: admin / admin123');
-            
-            // 完成後關閉資料庫
-            db.close((err) => {
-              if (err) console.error('關閉資料庫錯誤:', err);
-              else console.log('資料庫初始化完成！');
-            });
-          }
-        );
-      } else {
-        console.log('已存在管理員帳號，略過建立。');
+    ];
+
+    let usersCreated = 0;
+    let totalUsers = defaultUsers.length;
+
+    function createUser(userIndex) {
+      if (userIndex >= totalUsers) {
+        // 所有用戶處理完成，關閉資料庫
         db.close((err) => {
           if (err) console.error('關閉資料庫錯誤:', err);
           else console.log('資料庫初始化完成！');
         });
+        return;
       }
-    });
+
+      const user = defaultUsers[userIndex];
+      db.get("SELECT id FROM users WHERE username = ?", [user.username], (err, row) => {
+        if (err) {
+          console.error(`檢查用戶 ${user.username} 錯誤:`, err);
+          createUser(userIndex + 1);
+          return;
+        }
+        
+        if (!row) {
+          const hashedPassword = bcrypt.hashSync(user.password, 10);
+          db.run(
+            "INSERT INTO users (name, student_id, username, password_hash, role) VALUES (?, ?, ?, ?, ?)",
+            [user.name, user.student_id, user.username, hashedPassword, user.role],
+            (err) => {
+              if (err) {
+                console.error(`建立用戶 ${user.username} 錯誤:`, err);
+              } else {
+                console.log(`已建立用戶: ${user.username} / ${user.password}`);
+                usersCreated++;
+              }
+              createUser(userIndex + 1);
+            }
+          );
+        } else {
+          console.log(`用戶 ${user.username} 已存在，略過建立。`);
+          createUser(userIndex + 1);
+        }
+      });
+    }
+
+    // 開始建立用戶
+    createUser(0);
   });
 });
