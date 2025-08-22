@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>操作記錄 - 東吳大學資料科學系學生會管理系統</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    body {
+      font-family: 'Microsoft JhengHei', Arial, sans-serif;
+      background-color: #fff0f5;
+      color: #4a3b47;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    body.loaded {
+      opacity: 1;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 100;
+      padding: 48px 0 0;
+      background-color: #ffb6c1;
+    }
+
+    .sidebar-sticky {
+      position: relative;
+      top: 0;
+      height: calc(100vh - 48px);
+      padding-top: .5rem;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    .nav-link {
+      color: #4a3b47;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      background-color: #f08080;
+      color: #fff;
+    }
+
+    .nav-link i {
+      margin-right: 10px;
+    }
+
+    .main-content {
+      margin-left: 240px;
+      padding: 30px;
+    }
+
+    .navbar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      left: 0;
+      z-index: 1030;
+      background-color: #ffc0cb;
+      box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    .navbar-brand {
+      padding-left: 15px;
+      font-weight: bold;
+      color: #4a3b47 !important;
+    }
+
+    .filter-card {
+      background-color: #ffe4e1;
+      border: 2px solid #f8bbd0;
+      margin-bottom: 20px;
+    }
+
+    .log-item {
+      background-color: #ffe4e1;
+      border: 1px solid #f8bbd0;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      padding: 15px;
+      transition: all 0.3s ease;
+    }
+
+    .log-item:hover {
+      background-color: #ffdde1;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .log-time {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .log-user {
+      color: #e75480;
+      font-weight: bold;
+    }
+
+    .log-action {
+      color: #c2185b;
+      font-weight: 500;
+    }
+
+    .log-description {
+      color: #4a3b47;
+      margin-top: 5px;
+    }
+
+    .action-badge {
+      font-size: 0.8rem;
+      padding: 4px 8px;
+    }
+
+    .action-create {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .action-update {
+      background-color: #ffc107;
+      color: black;
+    }
+
+    .action-delete {
+      background-color: #dc3545;
+      color: white;
+    }
+
+    .action-login {
+      background-color: #17a2b8;
+      color: white;
+    }
+
+    .action-logout {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    .action-view {
+      background-color: #6f42c1;
+      color: white;
+    }
+
+    .loading-spinner {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    @media (max-width: 767.98px) {
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 頂部導航欄 -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/dashboard">東吳大學資料科學系學生會</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+              <span id="current-user">使用者</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" id="logout-btn">登出</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 側邊欄 -->
+  <div class="sidebar" style="width: 240px;">
+    <div class="sidebar-sticky">
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link" href="/dashboard">
+            <i class="bi bi-speedometer2"></i>首頁
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/activity">
+            <i class="bi bi-calendar-event"></i>活動部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/design">
+            <i class="bi bi-brush"></i>美宣部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/pr">
+            <i class="bi bi-people"></i>公關部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/secretary">
+            <i class="bi bi-file-text"></i>文書部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/finance">
+            <i class="bi bi-cash-coin"></i>財務部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active" href="/history">
+            <i class="bi bi-clock-history"></i>歷史資料
+          </a>
+        </li>
+        <li class="nav-item admin-only" style="display: none;">
+          <a class="nav-link" href="/admin">
+            <i class="bi bi-gear"></i>系統管理
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 主要內容 -->
+  <div class="main-content">
+    <div class="container-fluid">
+      <h1 class="mb-4"><i class="bi bi-clock-history me-2"></i>操作記錄</h1>
+
+      <!-- 篩選器 -->
+      <div class="card filter-card">
+        <div class="card-body">
+          <h5 class="card-title"><i class="bi bi-funnel me-2"></i>篩選條件</h5>
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label for="userFilter" class="form-label">使用者</label>
+              <select class="form-select" id="userFilter">
+                <option value="">所有使用者</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="actionFilter" class="form-label">操作類型</label>
+              <select class="form-select" id="actionFilter">
+                <option value="">所有操作</option>
+                <option value="create">新增</option>
+                <option value="update">修改</option>
+                <option value="delete">刪除</option>
+                <option value="login">登入</option>
+                <option value="logout">登出</option>
+                <option value="view">查看</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="dateFrom" class="form-label">開始日期</label>
+              <input type="date" class="form-control" id="dateFrom">
+            </div>
+            <div class="col-md-3">
+              <label for="dateTo" class="form-label">結束日期</label>
+              <input type="date" class="form-control" id="dateTo">
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-md-6">
+              <label for="searchKeyword" class="form-label">關鍵字搜索</label>
+              <input type="text" class="form-control" id="searchKeyword" placeholder="搜索操作描述...">
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+              <button type="button" class="btn btn-primary me-2" onclick="applyFilters()">
+                <i class="bi bi-search me-1"></i>搜索
+              </button>
+              <button type="button" class="btn btn-outline-secondary me-2" onclick="clearFilters()">
+                <i class="bi bi-arrow-clockwise me-1"></i>重置
+              </button>
+              <button type="button" class="btn btn-danger" id="deleteAllBtn" onclick="deleteAllLogs()" style="display: none;">
+                <i class="bi bi-trash me-1"></i>一鍵刪除全部
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 操作記錄列表 -->
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>操作記錄列表</h5>
+          <div>
+            <span class="badge bg-info" id="totalCount">總計: 0 筆</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">載入中...</span>
+            </div>
+            <p class="mt-2">載入操作記錄中...</p>
+          </div>
+          
+          <div id="logsList">
+            <!-- 操作記錄將在這裡動態載入 -->
+          </div>
+          
+          <div id="noLogs" class="text-center text-muted py-4" style="display: none;">
+            <i class="bi bi-inbox display-4"></i>
+            <p class="mt-2">暫無操作記錄</p>
+          </div>
+          
+          <!-- 分頁 -->
+          <nav aria-label="操作記錄分頁" id="pagination" style="display: none;">
+            <ul class="pagination justify-content-center">
+              <!-- 分頁按鈕將在這裡動態生成 -->
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let currentPage = 1;
+    const pageSize = 20;
+    let totalPages = 1;
+    let currentUser = null;
+
+    document.addEventListener('DOMContentLoaded', async function () {
+      console.log('🚀 開始初始化操作記錄頁面...');
+      
+      // 立即顯示頁面內容
+      document.body.classList.add('loaded');
+      
+      try {
+        // 獲取用戶資訊
+        await checkAuth();
+        
+        // 載入操作記錄
+        await loadLogs();
+        
+        // 載入使用者列表用於篩選
+        await loadUsers();
+        
+        console.log('✅ 操作記錄頁面初始化完成');
+        
+      } catch (error) {
+        console.error('初始化錯誤:', error);
+      }
+
+      // 登出按鈕處理
+      const logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async function (e) {
+          e.preventDefault();
+          if (confirm('確定要登出嗎？')) {
+            try {
+              await fetch('/auth/logout', {
+                method: 'POST',
+                credentials: 'include'
+              });
+            } catch (error) {
+              console.error('登出錯誤:', error);
+            } finally {
+              window.location.href = '/';
+            }
+          }
+        });
+      }
+    });
+
+    // 檢查認證狀態
+    async function checkAuth() {
+      try {
+        const response = await fetch('/auth/check', {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        if (response.status === 200) {
+          const data = await response.json();
+          
+          if (data.authenticated && data.user) {
+            currentUser = data.user;
+            document.getElementById('current-user').textContent = data.user.username || '使用者';
+            
+            // 如果是管理員，顯示管理員選項
+            if (data.user.role === 'admin') {
+              document.querySelectorAll('.admin-only').forEach(el => {
+                el.style.display = 'block';
+              });
+              // 顯示一鍵刪除按鈕
+              const deleteAllBtn = document.getElementById('deleteAllBtn');
+              if (deleteAllBtn) {
+                deleteAllBtn.style.display = 'inline-block';
+              }
+            }
+          } else {
+            window.location.replace('/');
+            return;
+          }
+        } else if (response.status === 401) {
+          window.location.replace('/');
+          return;
+        }
+      } catch (error) {
+        console.error('認證檢查失敗:', error);
+        window.location.replace('/');
+      }
+    }
+
+    // 載入操作記錄
+    async function loadLogs() {
+      const loadingSpinner = document.getElementById('loadingSpinner');
+      const logsList = document.getElementById('logsList');
+      const noLogs = document.getElementById('noLogs');
+      const totalCount = document.getElementById('totalCount');
+      
+      try {
+        loadingSpinner.style.display = 'block';
+        logsList.innerHTML = '';
+        noLogs.style.display = 'none';
+        
+        // 構建查詢參數
+        const params = new URLSearchParams({
+          page: currentPage,
+          limit: pageSize
+        });
+        
+        // 添加篩選條件
+        const userFilter = document.getElementById('userFilter')?.value;
+        const actionFilter = document.getElementById('actionFilter')?.value;
+        const dateFrom = document.getElementById('dateFrom')?.value;
+        const dateTo = document.getElementById('dateTo')?.value;
+        const searchKeyword = document.getElementById('searchKeyword')?.value;
+        
+        if (userFilter) params.append('user', userFilter);
+        if (actionFilter) params.append('action', actionFilter);
+        if (dateFrom) params.append('dateFrom', dateFrom);
+        if (dateTo) params.append('dateTo', dateTo);
+        if (searchKeyword) params.append('search', searchKeyword);
+        
+        const response = await fetch(`/api/operation-logs?${params}`, {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error('載入操作記錄失敗');
+        }
+        
+        const data = await response.json();
+        
+        if (data.logs && data.logs.length > 0) {
+          logsList.innerHTML = data.logs.map(log => createLogItem(log)).join('');
+          totalCount.textContent = `總計: ${data.total} 筆`;
+          
+          // 更新分頁
+          totalPages = Math.ceil(data.total / pageSize);
+          updatePagination();
+        } else {
+          noLogs.style.display = 'block';
+          totalCount.textContent = '總計: 0 筆';
+          document.getElementById('pagination').style.display = 'none';
+        }
+        
+      } catch (error) {
+        console.error('載入操作記錄錯誤:', error);
+        logsList.innerHTML = '<div class="alert alert-danger">載入操作記錄失敗，請稍後再試</div>';
+      } finally {
+        loadingSpinner.style.display = 'none';
+      }
+    }
+
+    // 創建操作記錄項目
+    function createLogItem(log) {
+      const actionBadgeClass = getActionBadgeClass(log.action);
+      const formattedTime = new Date(log.created_at).toLocaleString('zh-TW');
+      
+      // 只有管理員可以看到刪除按鈕
+      const deleteButton = currentUser && currentUser.role === 'admin' ? 
+        `<button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteLog('${log.id}')" title="刪除此記錄">
+          <i class="bi bi-trash"></i>
+        </button>` : '';
+      
+      return `
+        <div class="log-item" data-log-id="${log.id}">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center mb-2">
+                <span class="log-user me-2">${escapeHtml(log.username)}</span>
+                <span class="badge action-badge ${actionBadgeClass}">${getActionText(log.action)}</span>
+                <span class="log-time ms-auto">${formattedTime}</span>
+                ${deleteButton}
+              </div>
+              <div class="log-description">
+                ${escapeHtml(log.description)}
+              </div>
+              ${log.details ? `<div class="text-muted small mt-1">詳細: ${escapeHtml(log.details)}</div>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 獲取操作類型對應的樣式類別
+    function getActionBadgeClass(action) {
+      const classMap = {
+        'create': 'action-create',
+        'update': 'action-update',
+        'delete': 'action-delete',
+        'login': 'action-login',
+        'logout': 'action-logout',
+        'view': 'action-view'
+      };
+      return classMap[action] || 'bg-secondary';
+    }
+
+    // 獲取操作類型的中文文字
+    function getActionText(action) {
+      const textMap = {
+        'create': '新增',
+        'update': '修改',
+        'delete': '刪除',
+        'login': '登入',
+        'logout': '登出',
+        'view': '查看'
+      };
+      return textMap[action] || action;
+    }
+
+    // 載入使用者列表
+    async function loadUsers() {
+      try {
+        const response = await fetch('/api/users', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const users = await response.json();
+          const userFilter = document.getElementById('userFilter');
+          
+          users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.username;
+            option.textContent = user.username;
+            userFilter.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.error('載入使用者列表錯誤:', error);
+      }
+    }
+
+    // 應用篩選條件
+    function applyFilters() {
+      currentPage = 1;
+      loadLogs();
+    }
+
+    // 清除篩選條件
+    function clearFilters() {
+      document.getElementById('userFilter').value = '';
+      document.getElementById('actionFilter').value = '';
+      document.getElementById('dateFrom').value = '';
+      document.getElementById('dateTo').value = '';
+      document.getElementById('searchKeyword').value = '';
+      currentPage = 1;
+      loadLogs();
+    }
+
+    // 更新分頁
+    function updatePagination() {
+      const pagination = document.getElementById('pagination');
+      
+      if (totalPages <= 1) {
+        pagination.style.display = 'none';
+        return;
+      }
+      
+      pagination.style.display = 'block';
+      const paginationList = pagination.querySelector('.pagination');
+      paginationList.innerHTML = '';
+      
+      // 上一頁按鈕
+      const prevItem = document.createElement('li');
+      prevItem.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+      prevItem.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage - 1})">上一頁</a>`;
+      paginationList.appendChild(prevItem);
+      
+      // 頁碼按鈕
+      const startPage = Math.max(1, currentPage - 2);
+      const endPage = Math.min(totalPages, currentPage + 2);
+      
+      for (let i = startPage; i <= endPage; i++) {
+        const pageItem = document.createElement('li');
+        pageItem.className = `page-item ${i === currentPage ? 'active' : ''}`;
+        pageItem.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i})">${i}</a>`;
+        paginationList.appendChild(pageItem);
+      }
+      
+      // 下一頁按鈕
+      const nextItem = document.createElement('li');
+      nextItem.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+      nextItem.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage + 1})">下一頁</a>`;
+      paginationList.appendChild(nextItem);
+    }
+
+    // 切換頁面
+    function changePage(page) {
+      if (page >= 1 && page <= totalPages && page !== currentPage) {
+        currentPage = page;
+        loadLogs();
+      }
+    }
+
+    // 刪除操作記錄
+    async function deleteLog(logId) {
+      if (!currentUser || currentUser.role !== 'admin') {
+        alert('只有管理員可以刪除操作記錄');
+        return;
+      }
+      
+      if (!confirm('確定要刪除這筆操作記錄嗎？此操作無法復原。')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/operation-logs/${logId}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          // 從DOM中移除該記錄
+          const logElement = document.querySelector(`[data-log-id="${logId}"]`);
+          if (logElement) {
+            logElement.remove();
+          }
+          
+          // 重新載入記錄以更新總數和分頁
+          await loadLogs();
+          
+          alert('操作記錄已成功刪除');
+        } else {
+          const errorData = await response.json();
+          alert(`刪除失敗: ${errorData.message || '未知錯誤'}`);
+        }
+      } catch (error) {
+        console.error('刪除操作記錄錯誤:', error);
+        alert('刪除操作記錄時發生錯誤，請稍後再試');
+      }
+    }
+
+    // 一鍵刪除所有操作記錄
+    async function deleteAllLogs() {
+      console.log('deleteAllLogs 被調用，currentUser:', currentUser);
+      
+      if (!currentUser) {
+        alert('用戶未登入，請重新登入');
+        return;
+      }
+      
+      if (currentUser.role !== 'admin') {
+        alert('只有管理員可以執行此操作');
+        return;
+      }
+      
+      const confirmMessage = '⚠️ 警告：此操作將刪除所有操作記錄，且無法復原！\n\n確定要繼續嗎？';
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/operation-logs/delete-all', {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          // 重新載入記錄
+          await loadLogs();
+          alert('所有操作記錄已成功刪除');
+        } else {
+          const errorData = await response.json();
+          alert(`刪除失敗: ${errorData.message || '未知錯誤'}`);
+        }
+      } catch (error) {
+        console.error('一鍵刪除操作記錄錯誤:', error);
+        alert('刪除操作記錄時發生錯誤，請稍後再試');
+      }
+    }
+
+    // HTML轉義函數
+    function escapeHtml(text) {
+      if (!text) return '';
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+  </script>
+</body>
+
+</html>

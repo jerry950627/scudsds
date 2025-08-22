@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>首頁 - 東吳大學資料科學系學生會管理系統</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    body {
+      font-family: 'Microsoft JhengHei', Arial, sans-serif;
+      background-color: #fff0f5;
+      color: #4a3b47;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    body.loaded {
+      opacity: 1;
+    }
+
+    /* 載入完成後顯示頁面 */
+    body.loaded {
+      opacity: 1;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 100;
+      padding: 48px 0 0;
+      background-color: #ffb6c1;
+    }
+
+    .sidebar-sticky {
+      position: relative;
+      top: 0;
+      height: calc(100vh - 48px);
+      padding-top: .5rem;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    .nav-link {
+      color: #4a3b47;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      background-color: #f08080;
+      color: #fff;
+    }
+
+    .nav-link i {
+      margin-right: 10px;
+    }
+
+    .main-content {
+      margin-left: 240px;
+      padding: 30px;
+    }
+
+    .department-card {
+      transition: transform 0.3s ease;
+      cursor: pointer;
+      height: 100%;
+      border: 2px solid #f8bbd0;
+      background-color: #ffe4e1;
+    }
+
+    .department-card:hover {
+      transform: translateY(-5px);
+      background-color: #ffdde1;
+    }
+
+    .card-icon {
+      font-size: 2.5rem;
+      margin-bottom: 15px;
+      color: #e75480;
+    }
+
+    .navbar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      left: 0;
+      z-index: 1030;
+      background-color: #ffc0cb;
+      box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    .navbar-brand {
+      padding-left: 15px;
+      font-weight: bold;
+      color: #4a3b47 !important;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+    }
+
+    .user-info img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+
+    .card-title {
+      color: #c2185b;
+    }
+
+    .card-body h2 {
+      font-weight: bold;
+      color: #ad1457;
+    }
+
+    @media (max-width: 767.98px) {
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      background-color: rgba(255, 240, 245, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: #e75480;
+      z-index: 9999;
+    }
+
+    .error-message {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      max-width: 400px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 頂部導航欄 -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/dashboard">東吳大學資料科學系學生會</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+              <span id="current-user">使用者</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" id="logout-btn">登出</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 側邊欄 -->
+  <div class="sidebar" style="width: 240px;">
+    <div class="sidebar-sticky">
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link active" href="/dashboard">
+            <i class="bi bi-speedometer2"></i>首頁
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/activity">
+            <i class="bi bi-calendar-event"></i>活動部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/design">
+            <i class="bi bi-brush"></i>美宣部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/pr">
+            <i class="bi bi-people"></i>公關部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/secretary">
+            <i class="bi bi-file-text"></i>文書部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/finance">
+            <i class="bi bi-cash-coin"></i>財務部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/history">
+            <i class="bi bi-clock-history"></i>歷史資料
+          </a>
+        </li>
+        <li class="nav-item admin-only" style="display: none;">
+          <a class="nav-link" href="/admin">
+            <i class="bi bi-gear"></i>系統管理
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 主要內容 -->
+  <div class="main-content">
+    <div class="container-fluid">
+      <h1 class="mb-4">歡迎使用資料科學系學生會管理系統</h1>
+
+      <!-- 部門快速訪問 -->
+      <h2 class="mb-4">部門快速訪問</h2>
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="department-card card" onclick="window.location.href='/activity'">
+            <div class="card-body text-center">
+              <i class="bi bi-calendar-event card-icon"></i>
+              <h5 class="card-title">活動部</h5>
+              <p class="card-text">管理活動計畫和進度資料</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="department-card card" onclick="window.location.href='/design'">
+            <div class="card-body text-center">
+              <i class="bi bi-brush card-icon"></i>
+              <h5 class="card-title">美宣部</h5>
+              <p class="card-text">管理設計作品和素材資料</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="department-card card" onclick="window.location.href='/pr'">
+            <div class="card-body text-center">
+              <i class="bi bi-people card-icon"></i>
+              <h5 class="card-title">公關部</h5>
+              <p class="card-text">管理廠商合作資料</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="department-card card" onclick="window.location.href='/secretary'">
+            <div class="card-body text-center">
+              <i class="bi bi-file-text card-icon"></i>
+              <h5 class="card-title">文書部</h5>
+              <p class="card-text">管理會議記錄和檔案資料</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="department-card card" onclick="window.location.href='/finance'">
+            <div class="card-body text-center">
+              <i class="bi bi-cash-coin card-icon"></i>
+              <h5 class="card-title">財務部</h5>
+              <p class="card-text">管理財務收支和預算資料</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="department-card card" onclick="window.location.href='/history'">
+            <div class="card-body text-center">
+              <i class="bi bi-clock-history card-icon"></i>
+              <h5 class="card-title">歷史資料</h5>
+              <p class="card-text">查看歷年學生會資料</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/assets/js/globalErrorHandler.js"></script>
+  <script src="/assets/js/common.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async function () {
+      console.log('🚀 開始初始化儀表板...');
+      
+      // 立即顯示頁面內容
+      document.body.classList.add('loaded');
+      
+      try {
+        // 獲取用戶資訊
+        let user = { username: '使用者', role: 'user' };
+        
+        try {
+          const response = await fetch('/auth/check', {
+            method: 'GET',
+            credentials: 'include'
+          });
+          
+          if (response.status === 200) {
+            const data = await response.json();
+            console.log('認證檢查回應:', data);
+            
+            if (data.authenticated && data.user) {
+              user = data.user;
+            } else {
+              console.log('認證失敗，重定向到首頁');
+              window.location.replace('/');
+              return;
+            }
+          } else if (response.status === 401) {
+            // 未登入，重定向到首頁
+            window.location.replace('/');
+            return;
+          }
+        } catch (error) {
+          console.error('認證檢查失敗:', error);
+        }
+        
+        // 更新使用者名稱
+        const currentUserElement = document.getElementById('current-user');
+        if (currentUserElement) {
+          currentUserElement.textContent = user.username || '使用者';
+        }
+
+        // 如果是管理員，顯示管理員選項
+        if (user.role === 'admin') {
+          document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = 'block';
+          });
+        }
+
+        // 基本數據載入已移除
+        
+        console.log('✅ 儀表板初始化完成');
+        
+      } catch (error) {
+        console.error('初始化錯誤:', error);
+        
+        // 設置基本用戶資訊
+        const currentUserElement = document.getElementById('current-user');
+        if (currentUserElement) {
+          currentUserElement.textContent = '使用者';
+        }
+      }
+
+      // 登出按鈕處理
+      const logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async function (e) {
+          e.preventDefault();
+          if (confirm('確定要登出嗎？')) {
+            try {
+              await fetch('/auth/logout', {
+                method: 'POST',
+                credentials: 'include'
+              });
+            } catch (error) {
+              console.error('登出錯誤:', error);
+            } finally {
+              window.location.href = '/';
+            }
+          }
+        });
+      }
+    });
+
+
+  </script>
+  </body>
+
+</html>

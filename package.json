@@ -1,0 +1,26 @@
+{
+  "name": "scuds",
+  "version": "1.0.0",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node start.js",
+    "dev": "node server.js",
+    "db:init": "node database/init.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "東吳大學資料科學系系學生會管理系統",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "multer": "^2.0.2",
+    "sqlite3": "^5.1.7",
+    "uuid": "^11.1.0",
+    "xlsx": "^0.18.5"
+  }
+}

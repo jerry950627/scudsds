@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活動部 - 東吳大學資料科學系學生會管理系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background-color: #fff0f5;
+            color: #4a3b47;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        body.loaded {
+            opacity: 1;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            background-color: #ffb6c1;
+        }
+
+        .sidebar-sticky {
+            position: relative;
+            top: 0;
+            height: calc(100vh - 48px);
+            padding-top: .5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .nav-link {
+            color: #4a3b47;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background-color: #f08080;
+            color: #fff;
+        }
+
+        .nav-link i {
+            margin-right: 10px;
+        }
+
+        .main-content {
+            margin-left: 240px;
+            padding: 30px;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            z-index: 1030;
+            background-color: #ffc0cb;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+
+        .navbar-brand {
+            padding-left: 15px;
+            font-weight: bold;
+            color: #4a3b47 !important;
+        }
+
+        .card {
+            border: 2px solid #f8bbd0;
+            background-color: #ffe4e1;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            background-color: #ffdde1;
+        }
+
+        .card-title {
+            color: #c2185b;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #d63384, #e91e63);
+            border: none;
+            font-weight: bold;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(45deg, #c74375, #d81b60);
+        }
+
+        .btn-outline-primary {
+            color: #d63384;
+            border-color: #d63384;
+            font-weight: bold;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #d63384;
+            border-color: #d63384;
+        }
+
+        .upload-area {
+            border: 2px dashed #d63384;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background-color: #ffeef2;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #c74375;
+            background-color: #ffe4e9;
+        }
+
+        .upload-area.dragover {
+            border-color: #ad1457;
+            background-color: #fce4ec;
+        }
+
+        .file-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #f8bbd0;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            background-color: #fff;
+        }
+
+        .file-item:hover {
+            background-color: #ffeef2;
+        }
+
+        .progress {
+            height: 8px;
+            background-color: #f8bbd0;
+        }
+
+        .progress-bar {
+            background: linear-gradient(45deg, #d63384, #e91e63);
+        }
+
+        @media (max-width: 767.98px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        .activity-icon {
+            font-size: 3rem;
+            color: #e75480;
+            margin-bottom: 20px;
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, #ffe4e1, #ffdde1);
+            border: none;
+            border-radius: 15px;
+        }
+
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #ad1457;
+        }
+    </style>
+</head>
+<body>
+    <!-- 頂部導航欄 -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/dashboard">東吳大學資料科學系學生會</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <span id="current-user">使用者</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" id="logout-btn">登出</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 側邊欄 -->
+    <div class="sidebar" style="width: 240px;">
+        <div class="sidebar-sticky">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="/dashboard">
+                        <i class="bi bi-speedometer2"></i>首頁
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="/activity">
+                        <i class="bi bi-calendar-event"></i>活動部
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/design">
+                        <i class="bi bi-brush"></i>美宣部
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/pr">
+                        <i class="bi bi-people"></i>公關部
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/secretary">
+                        <i class="bi bi-file-text"></i>文書部
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/finance">
+                        <i class="bi bi-cash-coin"></i>財務部
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/history">
+                        <i class="bi bi-clock-history"></i>歷史資料
+                    </a>
+                </li>
+                <li class="nav-item admin-only" style="display: none;">
+                    <a class="nav-link" href="/admin">
+                        <i class="bi bi-gear"></i>系統管理
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 主要內容 -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <!-- 頁面標題 -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="text-center">
+                        <i class="bi bi-calendar-event activity-icon"></i>
+                        <h1 class="mb-2">活動部管理系統</h1>
+                        <p class="text-muted">管理活動企劃書與活動細流</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 統計數據 -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">活動企劃書</h5>
+                            <div class="stats-number" id="proposal-count">0</div>
+                            <small class="text-muted">已上傳檔案</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">活動細流</h5>
+                            <div class="stats-number" id="timeline-count">0</div>
+                            <small class="text-muted">已上傳檔案</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">總檔案數</h5>
+                            <div class="stats-number" id="total-count">0</div>
+                            <small class="text-muted">所有檔案</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 上傳區域 -->
+            <div class="row mb-4">
+                <!-- 活動企劃書上傳 -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-file-earmark-text me-2"></i>活動企劃書上傳
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="upload-area" id="proposal-upload-area">
+                                <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #d63384;"></i>
+                                <h5 class="mt-3">拖拽檔案到此處或點擊上傳</h5>
+                                <p class="text-muted">支援 PDF, DOC, DOCX 格式</p>
+                                <input type="file" id="proposal-file-input" class="d-none" accept=".pdf,.doc,.docx" multiple>
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('proposal-file-input').click()">
+                                    <i class="bi bi-plus-circle me-2"></i>選擇檔案
+                                </button>
+                            </div>
+                            <div class="mt-3">
+                                <div class="progress d-none" id="proposal-progress">
+                                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 活動細流上傳 -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-diagram-3 me-2"></i>活動細流上傳
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="upload-area" id="timeline-upload-area">
+                                <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #d63384;"></i>
+                                <h5 class="mt-3">拖拽檔案到此處或點擊上傳</h5>
+                                <p class="text-muted">支援 PDF, DOC, DOCX, XLS, XLSX 格式</p>
+                                <input type="file" id="timeline-file-input" class="d-none" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple>
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('timeline-file-input').click()">
+                                    <i class="bi bi-plus-circle me-2"></i>選擇檔案
+                                </button>
+                            </div>
+                            <div class="mt-3">
+                                <div class="progress d-none" id="timeline-progress">
+                                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 檔案列表 -->
+            <div class="row">
+                <!-- 活動企劃書列表 -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-file-earmark-text me-2"></i>活動企劃書
+                            </h5>
+                            <button class="btn btn-outline-primary btn-sm" onclick="refreshProposalList()">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="file-list" id="proposal-list">
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                    <p class="mt-2">尚無檔案</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 活動細流列表 -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-diagram-3 me-2"></i>活動細流
+                            </h5>
+                            <button class="btn btn-outline-primary btn-sm" onclick="refreshTimelineList()">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="file-list" id="timeline-list">
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                    <p class="mt-2">尚無檔案</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成功/錯誤訊息 Toast -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="success-toast" class="toast" role="alert">
+            <div class="toast-header bg-success text-white">
+                <i class="bi bi-check-circle me-2"></i>
+                <strong class="me-auto">成功</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="success-message"></div>
+        </div>
+        <div id="error-toast" class="toast" role="alert">
+            <div class="toast-header bg-danger text-white">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong class="me-auto">錯誤</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="error-message"></div>
+        </div>
+    </div>
+
+    <!-- 檔案名稱編輯模態框 -->
+    <div class="modal fade" id="fileNameModal" tabindex="-1" aria-labelledby="fileNameModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="fileNameModalLabel">
+                        <i class="bi bi-pencil-square me-2"></i>編輯檔案名稱
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">請為每個檔案設定名稱（包含副檔名）：</p>
+                    <div id="fileNameList"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="confirmUpload">確認上傳</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            console.log('🚀 開始初始化活動部頁面...');
+            
+            // 立即顯示頁面內容
+            document.body.classList.add('loaded');
+            
+            try {
+                // 獲取用戶資訊
+                let user = { username: '使用者', role: 'user' };
+                
+                try {
+                    const response = await fetch('/auth/check', {
+                        method: 'GET',
+                        credentials: 'include'
+                    });
+                    
+                    if (response.status === 200) {
+                        const data = await response.json();
+                        console.log('認證檢查回應:', data);
+                        
+                        if (data.authenticated && data.user) {
+                            user = data.user;
+                        } else {
+                            console.log('認證失敗，重定向到登入頁面');
+                            window.location.replace('/');
+                            return;
+                        }
+                    } else if (response.status === 401) {
+                        // 未登入，重定向到登入頁面
+                        console.log('未登入，重定向到登入頁面');
+                        window.location.replace('/');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('認證檢查失敗:', error);
+                }
+                
+                // 更新使用者名稱
+                const currentUserElement = document.getElementById('current-user');
+                if (currentUserElement) {
+                    currentUserElement.textContent = user.username || '使用者';
+                }
+
+                // 如果是管理員，顯示管理員選項
+                if (user.role === 'admin') {
+                    document.querySelectorAll('.admin-only').forEach(el => {
+                        el.style.display = 'block';
+                    });
+                }
+
+                // 初始化上傳功能
+                initializeUpload();
+                
+                // 載入檔案列表
+                await loadFileList();
+                
+                console.log('✅ 活動部頁面初始化完成');
+                
+            } catch (error) {
+                console.error('初始化錯誤:', error);
+                showError('頁面初始化失敗');
+            }
+
+            // 登出按鈕處理
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async function (e) {
+                    e.preventDefault();
+                    if (confirm('確定要登出嗎？')) {
+                        try {
+                            await fetch('/auth/logout', {
+                                method: 'POST',
+                                credentials: 'include'
+                            });
+                        } catch (error) {
+                            console.error('登出錯誤:', error);
+                        } finally {
+                            window.location.href = '/';
+                        }
+                    }
+                });
+            }
+        });
+
+        // 初始化上傳功能
+        function initializeUpload() {
+            // 活動企劃書上傳
+            setupUpload('proposal', 'proposal-upload-area', 'proposal-file-input', 'proposal-progress');
+            
+            // 活動細流上傳
+            setupUpload('timeline', 'timeline-upload-area', 'timeline-file-input', 'timeline-progress');
+        }
+
+        // 設置上傳功能
+        function setupUpload(type, uploadAreaId, fileInputId, progressId) {
+            const uploadArea = document.getElementById(uploadAreaId);
+            const fileInput = document.getElementById(fileInputId);
+            const progress = document.getElementById(progressId);
+
+            // 點擊上傳區域
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            // 檔案選擇
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files, type, progress);
+            });
+
+            // 拖拽功能
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                handleFiles(e.dataTransfer.files, type, progress);
+            });
+        }
+
+        // 處理檔案上傳
+        async function handleFiles(files, type, progressElement) {
+            if (files.length === 0) return;
+
+            // 顯示檔案名稱編輯模態框
+            const fileNames = await showFileNameEditor(files);
+            if (!fileNames) return; // 用戶取消了上傳
+
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const newName = fileNames[i];
+                
+                // 創建新的 File 對象，使用自定義名稱
+                const renamedFile = new File([file], newName, { type: file.type });
+                formData.append('files', renamedFile);
+            }
+            formData.append('type', type);
+
+            try {
+                progressElement.classList.remove('d-none');
+                const progressBar = progressElement.querySelector('.progress-bar');
+                
+                // 模擬上傳進度
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += 10;
+                    progressBar.style.width = progress + '%';
+                    if (progress >= 90) {
+                        clearInterval(progressInterval);
+                    }
+                }, 100);
+
+                const response = await fetch('/api/activity/upload', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'
+                });
+
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showSuccess(`成功上傳 ${files.length} 個檔案`);
+                    await loadFileList();
+                } else {
+                    const error = await response.json().catch(() => ({ message: '上傳失敗' }));
+                    showError(error.message || '上傳失敗');
+                }
+            } catch (error) {
+                console.error('上傳錯誤:', error);
+                showError('上傳過程中發生錯誤');
+            } finally {
+                setTimeout(() => {
+                    progressElement.classList.add('d-none');
+                    progressElement.querySelector('.progress-bar').style.width = '0%';
+                }, 1000);
+            }
+        }
+
+        // 載入檔案列表
+        async function loadFileList() {
+            try {
+                const response = await fetch('/api/activity/files', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    updateFileList(data.proposals || [], 'proposal-list');
+                    updateFileList(data.timelines || [], 'timeline-list');
+                    updateStats(data);
+                } else {
+                    console.error('載入檔案列表失敗');
+                    // 顯示空列表
+                    updateFileList([], 'proposal-list');
+                    updateFileList([], 'timeline-list');
+                }
+            } catch (error) {
+                console.error('載入檔案列表錯誤:', error);
+                // 顯示空列表
+                updateFileList([], 'proposal-list');
+                updateFileList([], 'timeline-list');
+            }
+        }
+
+        // 更新檔案列表
+        function updateFileList(files, containerId) {
+            const container = document.getElementById(containerId);
+            
+            if (files.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                        <p class="mt-2">尚無檔案</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = files.map(file => `
+                <div class="file-item">
+                    <div>
+                        <i class="bi bi-file-earmark me-2"></i>
+                        <strong>${file.name}</strong>
+                        <br>
+                        <small class="text-muted">
+                            ${formatFileSize(file.size)} • ${formatDate(file.uploadDate)}
+                        </small>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="downloadFile('${file.id}')">
+                            <i class="bi bi-download"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteFile('${file.id}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 更新統計數據
+        function updateStats(data) {
+            document.getElementById('proposal-count').textContent = (data.proposals || []).length;
+            document.getElementById('timeline-count').textContent = (data.timelines || []).length;
+            document.getElementById('total-count').textContent = (data.proposals || []).length + (data.timelines || []).length;
+        }
+
+        // 刷新列表
+        async function refreshProposalList() {
+            await loadFileList();
+        }
+
+        async function refreshTimelineList() {
+            await loadFileList();
+        }
+
+        // 下載檔案
+        async function downloadFile(fileId) {
+            try {
+                const response = await fetch(`/api/activity/download/${fileId}`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    // 正確解析 Content-Disposition 標頭中的檔案名稱
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'download';
+                    if (contentDisposition) {
+                        // 處理 RFC 5987 格式: filename*=UTF-8''encoded_filename
+                        const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
+                        if (filenameMatch) {
+                            filename = decodeURIComponent(filenameMatch[1]);
+                        } else {
+                            // 處理標準格式: filename="filename"
+                            const standardMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                            if (standardMatch) {
+                                filename = standardMatch[1];
+                            }
+                        }
+                    }
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    showError('下載失敗');
+                }
+            } catch (error) {
+                console.error('下載錯誤:', error);
+                showError('下載過程中發生錯誤');
+            }
+        }
+
+        // 刪除檔案
+        async function deleteFile(fileId) {
+            if (!confirm('確定要刪除此檔案嗎？')) return;
+
+            try {
+                const response = await fetch(`/api/activity/delete/${fileId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    showSuccess('檔案已刪除');
+                    await loadFileList();
+                } else {
+                    const error = await response.json().catch(() => ({ message: '刪除失敗' }));
+                    showError(error.message || '刪除失敗');
+                }
+            } catch (error) {
+                console.error('刪除錯誤:', error);
+                showError('刪除過程中發生錯誤');
+            }
+        }
+
+        // 顯示成功訊息
+        function showSuccess(message) {
+            document.getElementById('success-message').textContent = message;
+            const toast = new bootstrap.Toast(document.getElementById('success-toast'));
+            toast.show();
+        }
+
+        // 顯示錯誤訊息
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            const toast = new bootstrap.Toast(document.getElementById('error-toast'));
+            toast.show();
+        }
+
+        // 格式化檔案大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 格式化日期
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-TW') + ' ' + date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // 顯示檔案名稱編輯器
+        function showFileNameEditor(files) {
+            return new Promise((resolve) => {
+                const modal = new bootstrap.Modal(document.getElementById('fileNameModal'));
+                const fileNameList = document.getElementById('fileNameList');
+                const confirmBtn = document.getElementById('confirmUpload');
+                let isResolved = false;
+                
+                // 清空列表
+                fileNameList.innerHTML = '';
+                
+                // 為每個檔案創建輸入框
+                const fileInputs = [];
+                const fileExtensions = [];
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileName = file.name;
+                    const lastDotIndex = fileName.lastIndexOf('.');
+                    const nameWithoutExt = lastDotIndex > 0 ? fileName.substring(0, lastDotIndex) : fileName;
+                    const extension = lastDotIndex > 0 ? fileName.substring(lastDotIndex) : '';
+                    
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'mb-3';
+                    
+                    const label = document.createElement('label');
+                    label.className = 'form-label';
+                    label.textContent = `檔案 ${i + 1} (原名: ${fileName})`;
+                    
+                    const inputGroup = document.createElement('div');
+                    inputGroup.className = 'input-group';
+                    
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-control';
+                    input.value = nameWithoutExt;
+                    input.placeholder = '請輸入檔案名稱（不含副檔名）';
+                    
+                    const extensionSpan = document.createElement('span');
+                    extensionSpan.className = 'input-group-text';
+                    extensionSpan.textContent = extension || '.txt';
+                    
+                    inputGroup.appendChild(input);
+                    inputGroup.appendChild(extensionSpan);
+                    fileDiv.appendChild(label);
+                    fileDiv.appendChild(inputGroup);
+                    fileNameList.appendChild(fileDiv);
+                    fileInputs.push(input);
+                    fileExtensions.push(extension || '.txt');
+                }
+                
+                // 確認按鈕事件
+                const handleConfirm = () => {
+                    if (isResolved) return;
+                    
+                    const fileNames = fileInputs.map((input, index) => {
+                        const nameWithoutExt = input.value.trim();
+                        return nameWithoutExt + fileExtensions[index];
+                    });
+                    
+                    // 驗證檔案名稱
+                    const invalidNames = fileInputs.filter(input => !input.value.trim() || input.value.trim().length === 0);
+                    if (invalidNames.length > 0) {
+                        showError('請為所有檔案設定名稱');
+                        return;
+                    }
+                    
+                    isResolved = true;
+                    modal.hide();
+                    resolve(fileNames);
+                };
+                
+                // 綁定事件
+                confirmBtn.onclick = handleConfirm;
+                
+                // 模態框關閉事件
+                document.getElementById('fileNameModal').addEventListener('hidden.bs.modal', () => {
+                    confirmBtn.onclick = null;
+                    if (!isResolved) {
+                        resolve(null);
+                    }
+                }, { once: true });
+                
+                // 顯示模態框
+                modal.show();
+            });
+        }
+    </script>
+</body>
+</html>

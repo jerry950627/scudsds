@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>美宣部管理 - 東吳大學資料科學系學生會管理系統</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    body {
+      font-family: 'Microsoft JhengHei', Arial, sans-serif;
+      background: linear-gradient(135deg, #fff0f5 0%, #ffe4e1 100%);
+      color: #4a3b47;
+      min-height: 100vh;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    body.loaded {
+      opacity: 1;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 100;
+      padding: 48px 0 0;
+      background-color: #ffb6c1;
+    }
+
+    .sidebar-sticky {
+      position: relative;
+      top: 0;
+      height: calc(100vh - 48px);
+      padding-top: .5rem;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    .nav-link {
+      color: #4a3b47;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      background-color: #f08080;
+      color: #fff;
+    }
+
+    .nav-link i {
+      margin-right: 10px;
+    }
+
+    .main-content {
+      margin-left: 240px;
+      padding: 30px;
+    }
+
+    .navbar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      left: 0;
+      z-index: 1030;
+      background-color: #ffc0cb;
+      box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    .navbar-brand {
+      padding-left: 15px;
+      font-weight: bold;
+      color: #4a3b47 !important;
+    }
+
+    .card {
+      border-radius: 15px;
+      border: none;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      margin-bottom: 20px;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, #ffb6c1 0%, #ffc0cb 100%);
+      color: #4a3b47;
+      font-weight: bold;
+      border-radius: 15px 15px 0 0 !important;
+    }
+
+    .btn-pink {
+      background: linear-gradient(135deg, #e75480 0%, #ff69b4 100%);
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 10px 25px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-pink:hover {
+      background: linear-gradient(135deg, #c74375 0%, #e75480 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(231, 84, 128, 0.4);
+      color: white;
+    }
+
+    .btn-outline-pink {
+      color: #e75480;
+      border-color: #e75480;
+      border-radius: 25px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-outline-pink:hover {
+      background-color: #e75480;
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    .form-label {
+      font-weight: bold;
+      color: #4a3b47;
+    }
+
+    .form-control,
+    .form-select {
+      border-radius: 10px;
+      border: 2px solid #ffb6c1;
+      transition: border-color 0.3s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: #e75480;
+      box-shadow: 0 0 0 0.2rem rgba(231, 84, 128, 0.25);
+    }
+
+    .upload-area {
+      border: 3px dashed #ffb6c1;
+      border-radius: 15px;
+      padding: 40px;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      background-color: #fff;
+    }
+
+    .upload-area:hover {
+      border-color: #e75480;
+      background-color: #fff0f5;
+    }
+
+    .upload-area.dragover {
+      border-color: #e75480;
+      background-color: #ffe4e1;
+    }
+
+    .file-item {
+      background-color: #fff;
+      border: 1px solid #ffb6c1;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .file-preview {
+      max-width: 100px;
+      max-height: 100px;
+      border-radius: 10px;
+      object-fit: cover;
+    }
+
+    .gallery-item {
+      position: relative;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      min-height: 80px;
+      padding: 15px 20px;
+    }
+
+    .gallery-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .gallery-content {
+      flex: 1;
+    }
+
+    .gallery-content h6 {
+      margin: 0 0 8px 0;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .gallery-content .badge {
+      align-self: flex-start;
+      margin-bottom: 5px;
+    }
+
+    .gallery-content small {
+      color: #666;
+      margin: 0;
+    }
+
+    .animate-fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* 系服和貼文區域樣式 - 統一粉紅色主題 */
+    .uniform-section .card-header,
+    .post-section .card-header {
+      background: linear-gradient(135deg, #ffb6c1 0%, #ffc0cb 100%);
+      color: #4a3b47;
+      font-weight: bold;
+    }
+    
+    .uniform-section .gallery-item,
+    .post-section .gallery-item {
+      border: 2px solid transparent;
+      transition: border-color 0.3s ease, transform 0.3s ease;
+    }
+    
+    .uniform-section .gallery-item:hover,
+    .post-section .gallery-item:hover {
+      border-color: #e75480;
+      transform: scale(1.02);
+    }
+    
+    .uniform-section .btn-outline-light,
+    .post-section .btn-outline-light {
+      color: #4a3b47;
+      border-color: #4a3b47;
+    }
+    
+    .uniform-section .btn-outline-light:hover,
+    .post-section .btn-outline-light:hover {
+      background-color: #4a3b47;
+      color: white;
+    }
+    
+    .section-divider {
+      height: 2px;
+      background: linear-gradient(90deg, #ffb6c1 0%, #ffc0cb 50%, #ffb6c1 100%);
+      margin: 30px 0;
+      border-radius: 1px;
+    }
+
+    /* 操作按鈕樣式 */
+    .action-buttons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 5px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+
+    .gallery-item:hover .action-buttons {
+      opacity: 1;
+    }
+
+    .download-btn,
+    .delete-btn {
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .download-btn {
+      background: rgba(40, 167, 69, 0.9);
+    }
+
+    .download-btn:hover {
+      background: rgba(40, 167, 69, 1);
+      transform: scale(1.1);
+    }
+
+    .delete-btn {
+      background: rgba(220, 53, 69, 0.9);
+    }
+
+    .delete-btn:hover {
+      background: rgba(220, 53, 69, 1);
+      transform: scale(1.1);
+    }
+
+    @media (max-width: 767.98px) {
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+      .main-content {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 頂部導航欄 -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/dashboard">東吳大學資料科學系學生會</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+              <span id="current-user">使用者</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" id="logout-btn">登出</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 側邊欄 -->
+  <div class="sidebar" style="width: 240px;">
+    <div class="sidebar-sticky">
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link" href="/dashboard">
+            <i class="bi bi-speedometer2"></i>首頁
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/activity">
+            <i class="bi bi-calendar-event"></i>活動部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active" href="/design">
+            <i class="bi bi-brush"></i>美宣部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/pr">
+            <i class="bi bi-people"></i>公關部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/secretary">
+            <i class="bi bi-file-text"></i>文書部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/finance">
+            <i class="bi bi-cash-coin"></i>財務部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/history">
+            <i class="bi bi-clock-history"></i>歷史資料
+          </a>
+        </li>
+        <li class="nav-item admin-only" style="display: none;">
+          <a class="nav-link" href="/admin">
+            <i class="bi bi-gear"></i>系統管理
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 主要內容 -->
+  <div class="main-content">
+    <div class="container-fluid">
+      <h1 class="mb-4 animate-fade-in">🎨 美宣部管理</h1>
+
+      <!-- 系服上傳區域 -->
+      <div class="card animate-fade-in">
+        <div class="card-header">
+          <i class="bi bi-shirt"></i> 系服設計上傳
+        </div>
+        <div class="card-body">
+          <form id="uniformUploadForm">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="uniformTitle" class="form-label">設計標題</label>
+                  <input type="text" class="form-control" id="uniformTitle" name="title" required>
+                </div>
+
+                <div class="mb-3">
+                  <label for="uniformCategory" class="form-label">類別</label>
+                  <select class="form-select" id="uniformCategory" name="category" required>
+                    <option value="">請選擇類別</option>
+                    <option value="t-shirt">T恤</option>
+                    <option value="hoodie">帽T</option>
+                    <option value="jacket">外套</option>
+                    <option value="polo">POLO衫</option>
+                    <option value="other">其他</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="upload-area" id="uniformUploadArea">
+                  <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #e75480;"></i>
+                  <h5 class="mt-3">拖拽檔案到此處或點擊上傳</h5>
+                  <p class="text-muted">支援 JPG, PNG, PDF, AI, PSD 格式</p>
+                  <input type="file" id="uniformFileInput" name="files" multiple accept=".jpg,.jpeg,.png,.pdf,.ai,.psd" style="display: none;">
+                </div>
+              </div>
+            </div>
+            <div id="uniformFileList" class="mt-3"></div>
+            <div class="text-end mt-3">
+              <button type="submit" class="btn btn-pink">
+                <i class="bi bi-upload"></i> 上傳系服設計
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- 系服設計展示 -->
+      <div class="card animate-fade-in uniform-section">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-shirt"></i> 系服設計作品</span>
+          <button class="btn btn-outline-light btn-sm" id="refreshUniformGallery">
+            <i class="bi bi-arrow-clockwise"></i> 重新整理
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="row" id="uniformGallery">
+            <!-- 動態載入系服設計作品 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 貼文上傳區域 -->
+      <div class="card animate-fade-in">
+        <div class="card-header">
+          <i class="bi bi-image"></i> 設計上傳
+        </div>
+        <div class="card-body">
+          <form id="postUploadForm">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="postTitle" class="form-label">設計標題</label>
+                  <input type="text" class="form-control" id="postTitle" name="title" required>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="upload-area" id="postUploadArea">
+                  <i class="bi bi-images" style="font-size: 3rem; color: #e75480;"></i>
+                  <h5 class="mt-3">拖拽檔案到此處或點擊上傳</h5>
+                  <p class="text-muted">支援 JPG, PNG, GIF, MP4 格式</p>
+                  <input type="file" id="postFileInput" name="files" multiple accept=".jpg,.jpeg,.png,.gif,.mp4" style="display: none;">
+                </div>
+              </div>
+            </div>
+            <div id="postFileList" class="mt-3"></div>
+            <div class="text-end mt-3">
+              <button type="submit" class="btn btn-pink">
+                <i class="bi bi-upload"></i> 上傳設計
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- 貼文設計展示 -->
+      <div class="card animate-fade-in post-section">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-image"></i> 設計作品</span>
+          <button class="btn btn-outline-light btn-sm" id="refreshPostGallery">
+            <i class="bi bi-arrow-clockwise"></i> 重新整理
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="row" id="postGallery">
+            <!-- 動態載入貼文設計作品 -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 查看設計作品模態框 -->
+  <div class="modal fade" id="viewDesignModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="viewDesignTitle">設計作品詳情</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6">
+              <img id="viewDesignImage" src="" alt="設計作品" class="img-fluid rounded">
+            </div>
+            <div class="col-md-6">
+              <p><strong>類別：</strong><span id="viewDesignCategory"></span></p>
+              <p><strong>說明：</strong><span id="viewDesignDescription"></span></p>
+              <p><strong>上傳者：</strong><span id="viewDesignCreator"></span></p>
+              <p><strong>上傳時間：</strong><span id="viewDesignDate"></span></p>
+              <div id="viewDesignFiles"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-pink" data-bs-dismiss="modal">關閉</button>
+          <button type="button" class="btn btn-outline-danger" id="deleteDesign" style="display: none;">
+            <i class="bi bi-trash"></i> 刪除
+          </button>
+          <button type="button" class="btn btn-pink" id="downloadDesign">
+            <i class="bi bi-download"></i> 下載
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async function () {
+      console.log('🎨 開始初始化美宣部頁面...');
+      
+      // 立即顯示頁面內容
+      document.body.classList.add('loaded');
+      
+      try {
+        // 獲取用戶資訊
+        let user = { username: '使用者', role: 'user' };
+        
+        try {
+          const response = await fetch('/auth/check', {
+            method: 'GET',
+            credentials: 'include'
+          });
+          
+          if (response.status === 200) {
+            const data = await response.json();
+            console.log('認證檢查回應:', data);
+            
+            if (data.authenticated && data.user) {
+              user = data.user;
+            } else {
+              console.log('認證失敗，重定向到首頁');
+              window.location.replace('/');
+              return;
+            }
+          } else if (response.status === 401) {
+            window.location.replace('/');
+            return;
+          }
+        } catch (error) {
+          console.error('認證檢查失敗:', error);
+        }
+        
+        // 更新使用者名稱
+        const currentUserElement = document.getElementById('current-user');
+        if (currentUserElement) {
+          currentUserElement.textContent = user.username || '使用者';
+        }
+
+        // 如果是管理員，顯示管理員選項
+        if (user.role === 'admin') {
+          document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = 'block';
+          });
+        }
+
+        // 初始化上傳功能
+        initializeUploadAreas();
+        
+        // 載入設計作品
+        loadUniformGallery();
+        loadPostGallery();
+        
+        // 初始化篩選器
+        initializeFilters();
+        
+        console.log('✅ 美宣部頁面初始化完成');
+        
+      } catch (error) {
+        console.error('初始化錯誤:', error);
+      }
+
+      // 登出按鈕處理
+      const logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async function (e) {
+          e.preventDefault();
+          if (confirm('確定要登出嗎？')) {
+            try {
+              await fetch('/auth/logout', {
+                method: 'POST',
+                credentials: 'include'
+              });
+            } catch (error) {
+              console.error('登出錯誤:', error);
+            } finally {
+              window.location.href = '/';
+            }
+          }
+        });
+      }
+    });
+
+    // 初始化上傳區域
+    function initializeUploadAreas() {
+      // 系服上傳
+      const uniformUploadArea = document.getElementById('uniformUploadArea');
+      const uniformFileInput = document.getElementById('uniformFileInput');
+      
+      uniformUploadArea.addEventListener('click', () => uniformFileInput.click());
+      uniformUploadArea.addEventListener('dragover', handleDragOver);
+      uniformUploadArea.addEventListener('drop', (e) => handleDrop(e, uniformFileInput));
+      uniformFileInput.addEventListener('change', (e) => handleFileSelect(e, 'uniform'));
+
+      // 貼文上傳
+      const postUploadArea = document.getElementById('postUploadArea');
+      const postFileInput = document.getElementById('postFileInput');
+      
+      postUploadArea.addEventListener('click', () => postFileInput.click());
+      postUploadArea.addEventListener('dragover', handleDragOver);
+      postUploadArea.addEventListener('drop', (e) => handleDrop(e, postFileInput));
+      postFileInput.addEventListener('change', (e) => handleFileSelect(e, 'post'));
+
+      // 表單提交
+      document.getElementById('uniformUploadForm').addEventListener('submit', handleUniformSubmit);
+      document.getElementById('postUploadForm').addEventListener('submit', handlePostSubmit);
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('dragover');
+    }
+
+    function handleDrop(e, fileInput) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('dragover');
+      fileInput.files = e.dataTransfer.files;
+      const event = new Event('change', { bubbles: true });
+      fileInput.dispatchEvent(event);
+    }
+
+    function handleFileSelect(e, type) {
+      const files = e.target.files;
+      const fileListId = type === 'uniform' ? 'uniformFileList' : 'postFileList';
+      displayFileList(files, fileListId);
+    }
+
+    function displayFileList(files, containerId) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      
+      Array.from(files).forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        
+        const fileInfo = document.createElement('div');
+        fileInfo.innerHTML = `
+          <strong>${file.name}</strong><br>
+          <small class="text-muted">${(file.size / 1024 / 1024).toFixed(2)} MB</small>
+        `;
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn btn-outline-danger btn-sm';
+        removeBtn.innerHTML = '<i class="bi bi-trash"></i>';
+        removeBtn.onclick = () => fileItem.remove();
+        
+        fileItem.appendChild(fileInfo);
+        fileItem.appendChild(removeBtn);
+        container.appendChild(fileItem);
+      });
+    }
+
+    async function handleUniformSubmit(e) {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('title', document.getElementById('uniformTitle').value);
+      formData.append('category', document.getElementById('uniformCategory').value);
+      
+      const files = document.getElementById('uniformFileInput').files;
+      for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+      }
+      
+      try {
+        const response = await fetch('/api/design/uniform', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (response.ok) {
+          alert('系服設計上傳成功！');
+          e.target.reset();
+          document.getElementById('uniformFileList').innerHTML = '';
+          loadUniformGallery();
+        } else {
+          throw new Error('上傳失敗');
+        }
+      } catch (error) {
+        console.error('上傳錯誤:', error);
+        alert('上傳失敗，請稍後再試');
+      }
+    }
+
+    async function handlePostSubmit(e) {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('title', document.getElementById('postTitle').value);
+      
+      const files = document.getElementById('postFileInput').files;
+      for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+      }
+      
+      try {
+        const response = await fetch('/api/design/post', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (response.ok) {
+          alert('貼文設計上傳成功！');
+          e.target.reset();
+          document.getElementById('postFileList').innerHTML = '';
+          loadPostGallery();
+        } else {
+          throw new Error('上傳失敗');
+        }
+      } catch (error) {
+        console.error('上傳錯誤:', error);
+        alert('上傳失敗，請稍後再試');
+      }
+    }
+
+    async function loadUniformGallery() {
+      try {
+        const response = await fetch('/api/design/gallery?category=uniform');
+        if (response.ok) {
+          const designs = await response.json();
+          console.log('載入系服設計作品:', designs.length, '筆');
+          displayUniformGallery(designs);
+        } else {
+          const errorData = await response.json();
+          console.error('API錯誤:', response.status, errorData);
+          if (response.status === 401) {
+            console.log('用戶未登入，重新導向到登入頁面');
+            window.location.href = '/';
+          }
+        }
+      } catch (error) {
+        console.error('載入系服設計作品失敗:', error);
+      }
+    }
+
+    async function loadPostGallery() {
+      try {
+        const response = await fetch('/api/design/gallery?category=post');
+        if (response.ok) {
+          const designs = await response.json();
+          console.log('載入貼文設計作品:', designs.length, '筆');
+          displayPostGallery(designs);
+        } else {
+          const errorData = await response.json();
+          console.error('API錯誤:', response.status, errorData);
+          if (response.status === 401) {
+            console.log('用戶未登入，重新導向到登入頁面');
+            window.location.href = '/';
+          }
+        }
+      } catch (error) {
+        console.error('載入貼文設計作品失敗:', error);
+      }
+    }
+
+    function displayUniformGallery(designs) {
+      const gallery = document.getElementById('uniformGallery');
+      gallery.innerHTML = '';
+      
+      if (designs.length === 0) {
+        gallery.innerHTML = `<div class="col-12 text-center text-muted"><p>尚無系服設計作品</p></div>`;
+        return;
+      }
+      
+      designs.forEach(design => {
+        const col = document.createElement('div');
+        col.className = 'col-12 mb-3';
+        
+        // 將英文類別轉換為中文顯示
+        const categoryMap = {
+          't-shirt': 'T恤',
+          'hoodie': '帽T',
+          'jacket': '外套',
+          'polo': 'POLO衫',
+          'other': '其他'
+        };
+        const categoryText = categoryMap[design.category] || design.category || '系服設計';
+        
+        col.innerHTML = `
+          <div class="gallery-item" onclick="viewDesign(${design.id})">
+            <div class="action-buttons">
+              <button class="download-btn" onclick="event.stopPropagation(); downloadDesign('${design.id}')" title="下載設計作品">
+                <i class="bi bi-download"></i>
+              </button>
+              <button class="delete-btn" data-design-id="${design.id}" data-design-title="${design.title}" onclick="event.stopPropagation(); deleteDesignDirect(this.dataset.designId, this.dataset.designTitle)" title="刪除設計作品">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+            <div class="gallery-content">
+              <h6>${design.title}</h6>
+              <small class="badge bg-light text-dark mb-1">${categoryText}</small>
+            </div>
+          </div>
+        `;
+        
+        gallery.appendChild(col);
+      });
+    }
+
+    function displayPostGallery(designs) {
+      const gallery = document.getElementById('postGallery');
+      gallery.innerHTML = '';
+      
+      if (designs.length === 0) {
+        gallery.innerHTML = `<div class="col-12 text-center text-muted"><p>尚無貼文設計作品</p></div>`;
+        return;
+      }
+      
+      designs.forEach(design => {
+        const col = document.createElement('div');
+        col.className = 'col-12 mb-3';
+        
+        // 將英文類別轉換為中文顯示
+        const categoryMap = {
+          't-shirt': 'T恤',
+          'hoodie': '帽T',
+          'jacket': '外套',
+          'polo': 'POLO衫',
+          'other': '其他',
+          'design': '' // 不顯示design文字
+        };
+        const categoryText = categoryMap[design.category] || design.category || '貼文設計';
+        
+        // 只有當categoryText不為空時才顯示badge
+        const badgeHtml = categoryText ? `<small class="badge bg-light text-dark mb-1">${categoryText}</small>` : '';
+        
+        col.innerHTML = `
+          <div class="gallery-item" onclick="viewDesign(${design.id})">
+            <div class="action-buttons">
+              <button class="download-btn" onclick="event.stopPropagation(); downloadDesign('${design.id}')" title="下載設計作品">
+                <i class="bi bi-download"></i>
+              </button>
+              <button class="delete-btn" data-design-id="${design.id}" data-design-title="${design.title}" onclick="event.stopPropagation(); deleteDesignDirect(this.dataset.designId, this.dataset.designTitle)" title="刪除設計作品">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+            <div class="gallery-content">
+              <h6>${design.title}</h6>
+              ${badgeHtml}
+            </div>
+          </div>
+        `;
+        
+        gallery.appendChild(col);
+      });
+    }
+
+    function initializeFilters() {
+      const refreshUniformGallery = document.getElementById('refreshUniformGallery');
+      const refreshPostGallery = document.getElementById('refreshPostGallery');
+      
+      // 系服設計重新整理按鈕事件
+      refreshUniformGallery.addEventListener('click', function() {
+        loadUniformGallery();
+      });
+      
+      // 貼文設計重新整理按鈕事件
+      refreshPostGallery.addEventListener('click', function() {
+        loadPostGallery();
+      });
+    }
+
+    let currentDesignData = null;
+
+    async function viewDesign(id) {
+      try {
+        // 從已載入的設計作品中找到對應的資料
+        const response = await fetch('/api/design/gallery');
+        if (response.ok) {
+          const designs = await response.json();
+          const design = designs.find(d => d.id === id);
+          
+          if (design) {
+            currentDesignData = design;
+            
+            // 填入模態框資料
+            document.getElementById('viewDesignTitle').textContent = design.title;
+            document.getElementById('viewDesignImage').src = design.thumbnail;
+            
+            // 將英文類別轉換為中文顯示
+            const categoryMap = {
+              't-shirt': 'T恤',
+              'hoodie': '帽T',
+              'jacket': '外套',
+              'polo': 'POLO衫',
+              'other': '其他',
+              'design': '' // 不顯示design文字
+            };
+            const categoryText = categoryMap[design.category] || design.category || '未分類';
+            document.getElementById('viewDesignCategory').textContent = categoryText;
+            
+            document.getElementById('viewDesignDescription').textContent = design.description || '無說明';
+            document.getElementById('viewDesignCreator').textContent = design.uploadedBy;
+            document.getElementById('viewDesignDate').textContent = new Date(design.uploadDate).toLocaleString('zh-TW');
+            
+            // 檢查當前使用者是否可以刪除（需要從認證資訊獲取）
+            const authResponse = await fetch('/auth/check', { credentials: 'include' });
+            if (authResponse.ok) {
+              const authData = await authResponse.json();
+              const canDelete = authData.user && (authData.user.role === 'admin' || authData.user.id === design.uploadedById);
+              
+              const deleteBtn = document.getElementById('deleteDesign');
+              if (canDelete) {
+                deleteBtn.style.display = 'inline-block';
+              } else {
+                deleteBtn.style.display = 'none';
+              }
+            }
+            
+            // 顯示模態框
+            const modal = new bootstrap.Modal(document.getElementById('viewDesignModal'));
+            modal.show();
+          }
+        }
+      } catch (error) {
+        console.error('載入設計作品詳情失敗:', error);
+        alert('載入設計作品詳情失敗');
+      }
+    }
+
+    async function deleteDesign() {
+      if (!currentDesignData) return;
+      
+      if (!confirm(`確定要刪除設計作品「${currentDesignData.title}」嗎？此操作無法復原。`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/design/delete/${currentDesignData.id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          alert('設計作品已刪除');
+          
+          // 關閉模態框
+          const modal = bootstrap.Modal.getInstance(document.getElementById('viewDesignModal'));
+          if (modal) {
+            modal.hide();
+          }
+          
+          // 重新載入設計作品列表
+          loadUniformGallery();
+          loadPostGallery();
+          
+          currentDesignData = null;
+        } else {
+          const error = await response.json().catch(() => ({ message: '刪除失敗' }));
+          alert(error.message || '刪除失敗');
+        }
+      } catch (error) {
+        console.error('刪除錯誤:', error);
+        alert('刪除過程中發生錯誤');
+      }
+    }
+
+    // 直接刪除設計作品（從設計作品項目上的刪除按鈕調用）
+    async function deleteDesignDirect(designId, designTitle) {
+      if (!confirm(`確定要刪除設計作品「${designTitle}」嗎？此操作無法復原。`)) {
+        return;
+      }
+      
+      try {
+        console.log('嘗試刪除設計作品:', designId, designTitle);
+        
+        const response = await fetch(`/api/design/delete/${designId}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        
+        console.log('刪除回應狀態:', response.status);
+        
+        if (response.ok) {
+          alert('設計作品已刪除');
+          
+          // 重新載入設計作品列表
+          loadUniformGallery();
+          loadPostGallery();
+        } else {
+          const error = await response.json().catch(() => ({ message: '刪除失敗' }));
+          console.error('刪除失敗:', error);
+          alert(error.message || '刪除失敗');
+        }
+      } catch (error) {
+        console.error('刪除錯誤:', error);
+        alert('刪除過程中發生錯誤');
+      }
+    }
+
+    // 下載設計作品
+    async function downloadDesign(designId) {
+      try {
+        const response = await fetch(`/api/design/download/${designId}`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          
+          // 從回應標頭獲取檔案名稱
+          const contentDisposition = response.headers.get('Content-Disposition');
+          let filename = 'design_file';
+          if (contentDisposition) {
+            // 處理 RFC 5987 格式: filename*=UTF-8''encoded_filename
+            const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
+            if (filenameMatch) {
+              filename = decodeURIComponent(filenameMatch[1]);
+            } else {
+              // 處理標準格式: filename="filename"
+              const standardMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+              if (standardMatch) {
+                filename = standardMatch[1];
+              }
+            }
+          }
+          
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else {
+          alert('下載失敗，請稍後再試');
+        }
+      } catch (error) {
+        console.error('下載錯誤:', error);
+        alert('下載過程中發生錯誤');
+      }
+    }
+
+    // 綁定刪除按鈕事件
+    document.addEventListener('DOMContentLoaded', function() {
+      const deleteBtn = document.getElementById('deleteDesign');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', deleteDesign);
+      }
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公關部 - 東吳大學資料科學系學生會管理系統</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: 'Microsoft JhengHei', Arial, sans-serif;
+      background-color: #fff0f5;
+      color: #4a3b47;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    body.loaded {
+      opacity: 1;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 100;
+      padding: 48px 0 0;
+      background-color: #ffb6c1;
+    }
+
+    .sidebar-sticky {
+      position: relative;
+      top: 0;
+      height: calc(100vh - 48px);
+      padding-top: .5rem;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    .nav-link {
+      color: #4a3b47;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      background-color: #f08080;
+      color: #fff;
+    }
+
+    .nav-link i {
+      margin-right: 10px;
+    }
+
+    .main-content {
+      margin-left: 240px;
+      padding: 30px;
+    }
+
+    .navbar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      left: 0;
+      z-index: 1030;
+      background-color: #ffc0cb;
+      box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    .navbar-brand {
+      padding-left: 15px;
+      font-weight: bold;
+      color: #4a3b47 !important;
+    }
+
+    .card {
+      border: 2px solid #f8bbd0;
+      background-color: #ffe4e1;
+      margin-bottom: 20px;
+    }
+
+    .card-header {
+      background-color: #ffb6c1;
+      color: #4a3b47;
+      font-weight: bold;
+    }
+
+    .btn-primary {
+      background-color: #e75480;
+      border-color: #e75480;
+    }
+
+    .btn-primary:hover {
+      background-color: #c2185b;
+      border-color: #c2185b;
+    }
+
+    .btn-success {
+      background-color: #4caf50;
+      border-color: #4caf50;
+    }
+
+    .btn-warning {
+      background-color: #ff9800;
+      border-color: #ff9800;
+    }
+
+    .btn-danger {
+      background-color: #f44336;
+      border-color: #f44336;
+    }
+
+    .table {
+      background-color: #fff;
+    }
+
+    .table th {
+      background-color: #ffb6c1;
+      color: #4a3b47;
+      border-color: #f8bbd0;
+    }
+
+    .form-control:focus {
+      border-color: #e75480;
+      box-shadow: 0 0 0 0.2rem rgba(231, 84, 128, 0.25);
+    }
+
+    .form-select:focus {
+      border-color: #e75480;
+      box-shadow: 0 0 0 0.2rem rgba(231, 84, 128, 0.25);
+    }
+
+    @media (max-width: 767.98px) {
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+    }
+
+    .vendor-card {
+      transition: transform 0.2s ease;
+    }
+
+    .vendor-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .vendor-type-badge {
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 頂部導航欄 -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/dashboard">東吳大學資料科學系學生會</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+              <span id="current-user">使用者</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" id="logout-btn">登出</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 側邊欄 -->
+  <div class="sidebar" style="width: 240px;">
+    <div class="sidebar-sticky">
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link" href="/dashboard">
+            <i class="bi bi-speedometer2"></i>首頁
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/activity">
+            <i class="bi bi-calendar-event"></i>活動部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/design">
+            <i class="bi bi-brush"></i>美宣部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active" href="/pr">
+            <i class="bi bi-people"></i>公關部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/secretary">
+            <i class="bi bi-file-text"></i>文書部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/finance">
+            <i class="bi bi-cash-coin"></i>財務部
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/history">
+            <i class="bi bi-clock-history"></i>歷史資料
+          </a>
+        </li>
+        <li class="nav-item admin-only" style="display: none;">
+          <a class="nav-link" href="/admin">
+            <i class="bi bi-gear"></i>系統管理
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 主要內容 -->
+  <div class="main-content">
+    <div class="container-fluid">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-people me-2"></i>公關部 - 廠商資料管理</h1>
+        <div>
+          <button class="btn btn-danger me-2" onclick="deleteAllVendors()">
+            <i class="bi bi-trash me-1"></i>一鍵刪除
+          </button>
+          <button class="btn btn-success me-2" onclick="document.getElementById('excelFileInput').click()">
+            <i class="bi bi-file-earmark-excel me-1"></i>匯入Excel
+          </button>
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVendorModal">
+            <i class="bi bi-plus-circle me-1"></i>新增廠商
+          </button>
+          <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;" onchange="handleExcelUpload(event)">
+        </div>
+      </div>
+
+      <!-- 搜尋和篩選 -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <i class="bi bi-search me-2"></i>搜尋與篩選
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <label for="searchVendor" class="form-label">搜尋廠商名稱</label>
+              <input type="text" class="form-control" id="searchVendor" placeholder="輸入廠商名稱...">
+            </div>
+            <div class="col-md-4">
+              <label for="filterType" class="form-label">商品種類</label>
+              <input type="text" class="form-control" id="filterType" placeholder="輸入商品種類...">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <button class="btn btn-outline-primary me-2" onclick="searchVendors()">
+                <i class="bi bi-search me-1"></i>搜尋
+              </button>
+              <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                <i class="bi bi-arrow-clockwise me-1"></i>清除
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 廠商列表 -->
+      <div class="card">
+        <div class="card-header">
+          <i class="bi bi-building me-2"></i>廠商列表
+        </div>
+        <div class="card-body">
+          <div id="vendorList" class="row">
+            <!-- 廠商卡片將在這裡動態生成 -->
+          </div>
+          <div id="noVendors" class="text-center py-5" style="display: none;">
+            <p class="text-muted mt-3">尚未新增任何廠商資料</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增廠商 Modal -->
+  <div class="modal fade" id="addVendorModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>新增廠商</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addVendorForm">
+            <div class="mb-3">
+              <label for="vendorName" class="form-label">廠商名稱 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="vendorName" required>
+            </div>
+            <div class="mb-3">
+              <label for="vendorEmail" class="form-label">Gmail <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" id="vendorEmail" required>
+            </div>
+            <div class="mb-3">
+              <label for="vendorType" class="form-label">商品種類 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="vendorType" required placeholder="請輸入商品種類（例如：食品、飲料、服飾、文具、3C產品等）">
+            </div>
+            <div class="mb-3">
+              <label for="vendorDescription" class="form-label">備註</label>
+              <textarea class="form-control" id="vendorDescription" rows="3" placeholder="其他相關資訊..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" onclick="addVendor()">新增廠商</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 編輯廠商 Modal -->
+  <div class="modal fade" id="editVendorModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>編輯廠商</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="editVendorForm">
+            <input type="hidden" id="editVendorId">
+            <div class="mb-3">
+              <label for="editVendorName" class="form-label">廠商名稱 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="editVendorName" required>
+            </div>
+            <div class="mb-3">
+              <label for="editVendorEmail" class="form-label">Gmail <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" id="editVendorEmail" required>
+            </div>
+            <div class="mb-3">
+              <label for="editVendorType" class="form-label">商品種類 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="editVendorType" required placeholder="請輸入商品種類（例如：食品、飲料、服飾、文具、3C產品等）">
+            </div>
+            <div class="mb-3">
+              <label for="editVendorDescription" class="form-label">備註</label>
+              <textarea class="form-control" id="editVendorDescription" rows="3" placeholder="其他相關資訊..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" onclick="updateVendor()">更新廠商</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let vendors = [];
+    let filteredVendors = [];
+
+    document.addEventListener('DOMContentLoaded', async function () {
+      console.log('🚀 開始初始化公關部頁面...');
+      
+      // 立即顯示頁面內容
+      document.body.classList.add('loaded');
+      
+      try {
+        // 獲取用戶資訊
+        let user = { username: '使用者', role: 'user' };
+        
+        try {
+          const response = await fetch('/auth/check', {
+            method: 'GET',
+            credentials: 'include'
+          });
+          
+          if (response.status === 200) {
+            const data = await response.json();
+            console.log('認證檢查回應:', data);
+            
+            if (data.authenticated && data.user) {
+              user = data.user;
+            } else {
+              console.log('認證失敗，重定向到首頁');
+              window.location.replace('/');
+              return;
+            }
+          } else if (response.status === 401) {
+            // 未登入，重定向到首頁
+            window.location.replace('/');
+            return;
+          }
+        } catch (error) {
+          console.error('認證檢查失敗:', error);
+        }
+        
+        // 更新使用者名稱
+        const currentUserElement = document.getElementById('current-user');
+        if (currentUserElement) {
+          currentUserElement.textContent = user.username || '使用者';
+        }
+
+        // 如果是管理員，顯示管理員選項
+        if (user.role === 'admin') {
+          document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = 'block';
+          });
+        }
+
+        // 載入廠商資料
+        await loadVendors();
+        
+        console.log('✅ 公關部頁面初始化完成');
+        
+      } catch (error) {
+        console.error('初始化錯誤:', error);
+        
+        // 設置基本用戶資訊
+        const currentUserElement = document.getElementById('current-user');
+        if (currentUserElement) {
+          currentUserElement.textContent = '使用者';
+        }
+      }
+
+      // 登出按鈕處理
+      const logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async function (e) {
+          e.preventDefault();
+          if (confirm('確定要登出嗎？')) {
+            try {
+              await fetch('/auth/logout', {
+                method: 'POST',
+                credentials: 'include'
+              });
+            } catch (error) {
+              console.error('登出錯誤:', error);
+            } finally {
+              window.location.href = '/';
+            }
+          }
+        });
+      }
+
+      // 搜尋功能
+      document.getElementById('searchVendor').addEventListener('input', searchVendors);
+      document.getElementById('filterType').addEventListener('change', searchVendors);
+    });
+
+    // 更新統計資訊
+    function updateStats(vendorList = vendors) {
+      const totalCount = vendorList.length;
+      const typeStats = {};
+      
+      vendorList.forEach(vendor => {
+        typeStats[vendor.type] = (typeStats[vendor.type] || 0) + 1;
+      });
+      
+      const totalVendorsElement = document.getElementById('totalVendors');
+      if (totalVendorsElement) {
+        totalVendorsElement.textContent = totalCount;
+      }
+      
+      // 更新類型統計（如果需要的話）
+      // 這裡可以根據需要添加更多統計資訊
+    }
+
+    // 載入廠商資料
+    async function loadVendors() {
+      try {
+        const response = await fetch('/api/vendors', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          vendors = data.vendors || [];
+        } else {
+          console.error('載入廠商資料失敗');
+          vendors = [];
+        }
+        
+        filteredVendors = [...vendors];
+        displayVendors();
+        updateStats();
+      } catch (error) {
+        console.error('載入廠商資料失敗:', error);
+        vendors = [];
+        filteredVendors = [];
+        displayVendors();
+        updateStats();
+      }
+    }
+
+    // 顯示廠商列表
+    function displayVendors() {
+      const vendorList = document.getElementById('vendorList');
+      const noVendors = document.getElementById('noVendors');
+      
+      if (filteredVendors.length === 0) {
+        vendorList.innerHTML = '';
+        noVendors.style.display = 'block';
+        return;
+      }
+      
+      noVendors.style.display = 'none';
+      
+      vendorList.innerHTML = filteredVendors.map(vendor => `
+        <div class="col-md-6 col-lg-4 mb-3">
+          <div class="card vendor-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <h6 class="card-title mb-0">${vendor.name}</h6>
+                <span class="badge bg-primary vendor-type-badge">${vendor.type}</span>
+              </div>
+              <p class="card-text mb-2">
+                <i class="bi bi-envelope me-1"></i>
+                <a href="mailto:${vendor.email}" class="text-decoration-none">${vendor.email}</a>
+              </p>
+              ${vendor.description ? `<p class="card-text text-muted small">${vendor.description}</p>` : ''}
+              <div class="d-flex justify-content-end mt-3">
+                <button class="btn btn-sm btn-outline-primary me-2" onclick="editVendor('${vendor.id}')">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteVendor('${vendor.id}')">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 搜尋廠商
+    async function searchVendors() {
+      const searchTerm = document.getElementById('searchVendor').value;
+      const typeFilter = document.getElementById('filterType').value;
+      
+      try {
+        const params = new URLSearchParams();
+        if (searchTerm) params.append('search', searchTerm);
+        if (typeFilter) params.append('type', typeFilter);
+        
+        const response = await fetch(`/api/vendors?${params}`, {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          vendors = data.vendors || [];
+          filteredVendors = [...vendors];
+          displayVendors();
+        } else {
+          console.error('搜尋廠商資料失敗');
+        }
+      } catch (error) {
+        console.error('搜尋廠商資料錯誤:', error);
+      }
+    }
+
+    // 清除篩選
+    function clearFilters() {
+      document.getElementById('searchVendor').value = '';
+      document.getElementById('filterType').value = '';
+      filteredVendors = [...vendors];
+      displayVendors();
+    }
+
+    // 新增廠商
+    async function addVendor() {
+      const form = document.getElementById('addVendorForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      
+      const vendorData = {
+        name: document.getElementById('vendorName').value,
+        email: document.getElementById('vendorEmail').value,
+        type: document.getElementById('vendorType').value,
+        description: document.getElementById('vendorDescription').value
+      };
+      
+      try {
+        const response = await fetch('/api/vendors', {
+             method: 'POST',
+             credentials: 'include',
+             headers: {
+               'Content-Type': 'application/json'
+             },
+             body: JSON.stringify(vendor)
+           });
+        
+        if (response.ok) {
+          // 重置表單
+          form.reset();
+          
+          // 關閉 modal
+          const modal = bootstrap.Modal.getInstance(document.getElementById('addVendorModal'));
+          modal.hide();
+          
+          // 重新載入列表
+          await loadVendors();
+          
+          alert('廠商新增成功！');
+        } else {
+          alert('新增廠商失敗，請稍後再試');
+        }
+      } catch (error) {
+        console.error('新增廠商錯誤:', error);
+        alert('新增廠商失敗，請稍後再試');
+      }
+    }
+
+    // 編輯廠商
+    function editVendor(vendorId) {
+      const vendor = vendors.find(v => v.id === vendorId);
+      if (!vendor) return;
+      
+      document.getElementById('editVendorId').value = vendor.id;
+      document.getElementById('editVendorName').value = vendor.name;
+      document.getElementById('editVendorEmail').value = vendor.email;
+      document.getElementById('editVendorType').value = vendor.type;
+      document.getElementById('editVendorDescription').value = vendor.description || '';
+      
+      const modal = new bootstrap.Modal(document.getElementById('editVendorModal'));
+      modal.show();
+    }
+
+    // 更新廠商
+    async function updateVendor() {
+      const form = document.getElementById('editVendorForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      
+      const vendorId = document.getElementById('editVendorId').value;
+      const vendorData = {
+        name: document.getElementById('editVendorName').value,
+        email: document.getElementById('editVendorEmail').value,
+        type: document.getElementById('editVendorType').value,
+        description: document.getElementById('editVendorDescription').value
+      };
+      
+      try {
+        const response = await fetch(`/api/vendors/${vendorId}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(vendorData)
+        });
+        
+        if (response.ok) {
+          // 關閉 modal
+          const modal = bootstrap.Modal.getInstance(document.getElementById('editVendorModal'));
+          modal.hide();
+          
+          // 重新載入列表
+          await loadVendors();
+          
+          alert('廠商資料更新成功！');
+        } else {
+          alert('更新廠商失敗，請稍後再試');
+        }
+      } catch (error) {
+        console.error('更新廠商錯誤:', error);
+        alert('更新廠商失敗，請稍後再試');
+      }
+    }
+
+    // 刪除廠商
+    async function deleteVendor(vendorId) {
+      if (!confirm('確定要刪除這個廠商嗎？')) return;
+      
+      try {
+        const response = await fetch(`/api/vendors/${vendorId}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          // 重新載入列表
+          await loadVendors();
+          
+          alert('廠商刪除成功！');
+        } else {
+          alert('刪除廠商失敗，請稍後再試');
+        }
+      } catch (error) {
+        console.error('刪除廠商錯誤:', error);
+        alert('刪除廠商失敗，請稍後再試');
+      }
+    }
+
+    // 處理Excel文件上傳
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          // 讀取第一個工作表
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          // 將工作表轉換為JSON
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          parseExcelData(jsonData);
+        } catch (error) {
+          console.error('Excel解析錯誤:', error);
+          alert('Excel文件解析失敗，請確認文件格式正確');
+        }
+      };
+      
+      reader.readAsArrayBuffer(file);
+      
+      // 清空文件輸入，允許重複選擇同一文件
+      event.target.value = '';
+    }
+
+    // 解析Excel資料
+    function parseExcelData(data) {
+      if (data.length < 2) {
+        alert('Excel文件內容不足，請確認文件包含標題行和資料行');
+        return;
+      }
+      
+      const headers = data[0];
+      const rows = data.slice(1);
+      
+      // 尋找對應的欄位索引
+      let typeIndex = -1, nameIndex = -1, contactIndex = -1;
+      
+      headers.forEach((header, index) => {
+        const headerStr = String(header).trim();
+        if (headerStr.includes('種類') || headerStr.includes('類型')) {
+          typeIndex = index;
+        } else if (headerStr.includes('廠商') || headerStr.includes('名稱')) {
+          nameIndex = index;
+        } else if (headerStr.includes('聯絡') || headerStr.includes('聯繫') || headerStr.includes('email') || headerStr.includes('gmail')) {
+          contactIndex = index;
+        }
+      });
+      
+      if (typeIndex === -1 || nameIndex === -1 || contactIndex === -1) {
+        alert('Excel文件格式不正確，請確認包含「種類」、「廠商名稱」、「聯絡方式」欄位');
+        return;
+      }
+      
+      const validVendors = [];
+      const errors = [];
+      
+      rows.forEach((row, index) => {
+        const type = row[typeIndex] ? String(row[typeIndex]).trim() : '';
+        const name = row[nameIndex] ? String(row[nameIndex]).trim() : '';
+        const contact = row[contactIndex] ? String(row[contactIndex]).trim() : '';
+        
+        if (type && name && contact) {
+          // 驗證email格式
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (emailRegex.test(contact)) {
+            validVendors.push({
+              type: type,
+              name: name,
+              email: contact,
+              description: `從Excel匯入 (第${index + 2}行)`
+            });
+          } else {
+            errors.push(`第${index + 2}行：聯絡方式格式不正確 (${contact})`);
+          }
+        } else {
+          if (type || name || contact) { // 只有部分欄位有值才報錯
+            errors.push(`第${index + 2}行：資料不完整`);
+          }
+        }
+      });
+      
+      if (errors.length > 0) {
+        console.warn('Excel匯入警告:', errors);
+      }
+      
+      if (validVendors.length === 0) {
+        alert('沒有找到有效的廠商資料，請檢查Excel文件內容');
+        return;
+      }
+      
+      // 確認匯入
+      const confirmMessage = `找到 ${validVendors.length} 筆有效廠商資料${errors.length > 0 ? `，${errors.length} 筆資料有問題` : ''}。\n\n確定要匯入嗎？`;
+      
+      if (confirm(confirmMessage)) {
+        importVendorsFromExcel(validVendors);
+      }
+    }
+
+    // 批量匯入廠商資料
+    async function importVendorsFromExcel(vendorList) {
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const vendor of vendorList) {
+        try {
+          const response = await fetch('/api/vendors', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(vendor)
+        });
+          
+          if (response.ok) {
+            successCount++;
+          } else {
+            failCount++;
+            console.error(`匯入失敗: ${vendor.name}`);
+          }
+        } catch (error) {
+          failCount++;
+          console.error(`匯入錯誤: ${vendor.name}`, error);
+        }
+      }
+      
+      // 重新載入廠商列表
+      await loadVendors();
+      
+      // 顯示匯入結果
+      const resultMessage = `匯入完成！\n成功：${successCount} 筆\n失敗：${failCount} 筆`;
+      alert(resultMessage);
+    }
+
+    // 一鍵刪除所有廠商
+    async function deleteAllVendors() {
+      console.log('deleteAllVendors 函數被調用，當前廠商數量:', vendors.length);
+      if (vendors.length === 0) {
+        alert('目前沒有廠商資料可以刪除');
+        return;
+      }
+      
+      const confirmMessage = `確定要刪除所有 ${vendors.length} 筆廠商資料嗎？\n\n此操作無法復原！`;
+      if (!confirm(confirmMessage)) return;
+      
+      // 二次確認
+      if (!confirm('請再次確認：真的要刪除所有廠商資料嗎？')) return;
+      
+      try {
+        console.log('開始發送刪除請求...');
+        const response = await fetch('/api/vendors/all', {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('收到響應:', response.status, response.statusText);
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('刪除結果:', result);
+          // 重新載入列表
+          await loadVendors();
+          alert('所有廠商資料已成功刪除！');
+        } else {
+          const errorText = await response.text();
+          console.error('刪除失敗:', response.status, errorText);
+          alert(`刪除失敗: ${response.status} ${response.statusText}`);
+        }
+      } catch (error) {
+        console.error('刪除所有廠商錯誤:', error);
+        alert(`刪除失敗: ${error.message}`);
+      }
+    }
+  </script>
+</body>
+
+</html>
