@@ -32,20 +32,20 @@ db.serialize(() => {
     }
     console.log('使用者資料表已確認/建立');
 
-    // 建立預設帳號
+    // 建立預設帳號 - 重要：部署後請立即修改預設密碼！
     const defaultUsers = [
       {
         name: '管理員',
         student_id: 'ADMIN001',
         username: 'admin',
-        password: 'admin123',
+        password: 'admin123', // 請在部署後立即修改此密碼
         role: 'admin'
       },
       {
         name: '學會成員',
         student_id: '13173149',
         username: 'scuds13173149',
-        password: '5028',
+        password: '5028', // 請在部署後立即修改此密碼
         role: 'user'
       }
     ];

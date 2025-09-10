@@ -10,9 +10,12 @@ const dataDir = process.env.NODE_ENV === 'production'
 const dbPath = path.join(dataDir, 'app.db');
 const db = new sqlite3.Database(dbPath);
 
-// 更新用戶密碼
-const username = 'scuds13173149';
-const newPassword = '5028';
+// 更新用戶密碼 - 警告：此檔案包含明文密碼，請謹慎使用
+// 建議：使用環境變數或命令行參數傳入密碼
+const username = process.argv[2] || 'scuds13173149'; // 可通過命令行參數指定用戶名
+const newPassword = process.argv[3] || '5028'; // 可通過命令行參數指定新密碼
+
+// 使用方法: node update-password.js [username] [newPassword]
 const hashedPassword = bcrypt.hashSync(newPassword, 10);
 
 db.run(

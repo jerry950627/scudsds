@@ -53,10 +53,9 @@ npm start
 5. 訪問應用
 打開瀏覽器訪問 `http://localhost:3000`
 
-### 預設管理員帳號
+### 管理員帳號
 
-- 用戶名: `admin`
-- 密碼: `admin123`
+請聯繫系統管理員取得登入資訊。
 
 ## 部署到 Render
 
@@ -96,7 +95,6 @@ npm start
    - **Mount Path**: `/opt/render/project/src/data`
    - **Size**: 1GB（免費方案）
 
-## 故障排除
 
 ### 常見問題
 
