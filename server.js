@@ -285,6 +285,323 @@ const requireAuth = (req, res, next) => {
   return res.redirect('/');
 };
 
+// 引入備份模組
+const backupModule = require('./scripts/backup');
+
+// 資料備份 API (僅管理員可用)
+app.post('/api/admin/backup', requireAuth, (req, res) => {
+  // 檢查是否為管理員
+  if (req.session.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: '權限不足' });
+  }
+  
+  try {
+    console.log('管理員', req.session.user.username, '執行資料備份');
+    const result = backupModule.performBackup();
+    
+    // 記錄操作
+    logOperation(
+      req.session.user.id,
+      req.session.user.username,
+      'backup',
+      '執行系統資料備份',
+      `資料庫備份: ${result.database ? '成功' : '失敗'}, 檔案備份: ${result.uploads ? '成功' : '失敗'}`,
+      req
+    );
+    
+    res.json({
+      success: true,
+      message: '備份完成',
+      result: result
+    });
+  } catch (error) {
+    console.error('備份失敗:', error);
+    res.status(500).json({ success: false, message: '備份失敗: ' + error.message });
+  }
+});
+
+// 獲取備份列表 API (僅管理員可用)
+app.get('/api/admin/backups', requireAuth, (req, res) => {
+  // 檢查是否為管理員
+  if (req.session.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: '權限不足' });
+  }
+  
+  try {
+    const backupDir = path.join(__dirname, 'backups');
+    
+    if (!fs.existsSync(backupDir)) {
+      return res.json({ success: true, backups: [] });
+    }
+    
+    const files = fs.readdirSync(backupDir)
+      .filter(file => file.includes('backup'))
+      .map(file => {
+        const filePath = path.join(backupDir, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          size: stats.size,
+          created: stats.mtime,
+          type: file.includes('database') ? 'database' : 'uploads'
+        };
+      })
+      .sort((a, b) => b.created - a.created);
+    
+    res.json({ success: true, backups: files });
+  } catch (error) {
+    console.error('獲取備份列表失敗:', error);
+    res.status(500).json({ success: false, message: '獲取備份列表失敗' });
+  }
+});
+
+// 下載備份檔案 API (僅管理員可用)
+app.get('/api/admin/backup/download/:filename', requireAuth, (req, res) => {
+  // 檢查是否為管理員
+  if (req.session.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: '權限不足' });
+  }
+  
+  try {
+    const filename = req.params.filename;
+    const backupDir = path.join(__dirname, 'backups');
+    const filePath = path.join(backupDir, filename);
+    
+    // 安全檢查：確保檔案在備份目錄內
+    if (!filePath.startsWith(backupDir)) {
+      return res.status(400).json({ success: false, message: '無效的檔案路徑' });
+    }
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: '備份檔案不存在' });
+    }
+    
+    // 記錄下載操作
+    logOperation(
+      req.session.user.id,
+      req.session.user.username,
+      'download_backup',
+      '下載備份檔案',
+      `檔案名稱: ${filename}`,
+      req
+    );
+    
+    // 設定下載標頭
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    
+    // 發送檔案
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error('下載備份檔案失敗:', error);
+    res.status(500).json({ success: false, message: '下載失敗' });
+  }
+});
+
+// 完整資料匯出 - 下載所有資料庫和檔案
+app.post('/api/admin/export-all', requireAuth, async (req, res) => {
+  // 檢查是否為管理員
+  if (req.session.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: '權限不足' });
+  }
+  
+  try {
+    const archiver = require('archiver');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const exportFilename = `scu-ds-complete-backup-${timestamp}.zip`;
+    
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${exportFilename}"`);
+    
+    const archive = archiver('zip', {
+      zlib: { level: 9 }
+    });
+    
+    archive.pipe(res);
+    
+    // 添加資料庫檔案
+    const dbPath = path.join(dataDir, 'app.db');
+    if (fs.existsSync(dbPath)) {
+      archive.file(dbPath, { name: 'database/app.db' });
+    }
+    
+    // 添加上傳檔案目錄
+    const uploadsPath = path.join(__dirname, 'uploads');
+    if (fs.existsSync(uploadsPath)) {
+      archive.directory(uploadsPath, 'uploads');
+    }
+    
+    // 添加配置檔案
+    const configFiles = ['package.json', 'README.md'];
+    configFiles.forEach(file => {
+      const filePath = path.join(__dirname, file);
+      if (fs.existsSync(filePath)) {
+        archive.file(filePath, { name: `config/${file}` });
+      }
+    });
+    
+    // 添加匯出資訊
+    const exportInfo = {
+      exportDate: new Date().toISOString(),
+      version: '1.0.0',
+      description: 'SCU-DS 完整資料備份',
+      contents: {
+        database: fs.existsSync(dbPath),
+        uploads: fs.existsSync(uploadsPath),
+        config: true
+      }
+    };
+    
+    archive.append(JSON.stringify(exportInfo, null, 2), { name: 'export-info.json' });
+    
+    // 記錄操作
+    logOperation(
+      req.session.user.id,
+      req.session.user.username,
+      'export_all_data',
+      '匯出完整系統資料',
+      `匯出檔案: ${exportFilename}`,
+      req
+    );
+    
+    await archive.finalize();
+    
+  } catch (error) {
+    console.error('資料匯出錯誤:', error);
+    res.status(500).json({ success: false, message: '資料匯出失敗', error: error.message });
+  }
+});
+
+// 設定檔案上傳 (用於資料匯入)
+const importUpload = multer({ 
+  dest: 'temp/',
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB 限制
+  },
+  fileFilter: function (req, file, cb) {
+    if (file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed') {
+      cb(null, true);
+    } else {
+      cb(new Error('只允許上傳 ZIP 檔案'));
+    }
+  }
+});
+
+// 完整資料匯入 - 上傳並還原資料
+app.post('/api/admin/import-all', requireAuth, importUpload.single('backup'), async (req, res) => {
+  // 檢查是否為管理員
+  if (req.session.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: '權限不足' });
+  }
+  
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: '請選擇要上傳的資料檔案' });
+    }
+    
+    const extract = require('extract-zip');
+    const uploadedFile = req.file;
+    const tempExtractPath = path.join(__dirname, 'temp', 'extract-' + Date.now());
+    
+    // 確保臨時目錄存在
+    if (!fs.existsSync(path.join(__dirname, 'temp'))) {
+      fs.mkdirSync(path.join(__dirname, 'temp'), { recursive: true });
+    }
+    
+    // 解壓縮上傳的檔案
+    await extract(uploadedFile.path, { dir: tempExtractPath });
+    
+    // 檢查匯出資訊
+    const exportInfoPath = path.join(tempExtractPath, 'export-info.json');
+    if (!fs.existsSync(exportInfoPath)) {
+      throw new Error('無效的備份檔案：缺少匯出資訊');
+    }
+    
+    const exportInfo = JSON.parse(fs.readFileSync(exportInfoPath, 'utf8'));
+    console.log('匯入資料資訊:', exportInfo);
+    
+    // 備份現有資料
+    const backupTimestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const currentBackupPath = path.join(__dirname, 'backups', `pre-import-backup-${backupTimestamp}`);
+    if (!fs.existsSync(path.join(__dirname, 'backups'))) {
+      fs.mkdirSync(path.join(__dirname, 'backups'), { recursive: true });
+    }
+    fs.mkdirSync(currentBackupPath, { recursive: true });
+    
+    // 備份現有資料庫
+    const currentDbPath = path.join(dataDir, 'app.db');
+    if (fs.existsSync(currentDbPath)) {
+      fs.copyFileSync(currentDbPath, path.join(currentBackupPath, 'app.db'));
+    }
+    
+    // 備份現有上傳檔案
+    const currentUploadsPath = path.join(__dirname, 'uploads');
+    if (fs.existsSync(currentUploadsPath)) {
+      fs.cpSync(currentUploadsPath, path.join(currentBackupPath, 'uploads'), { recursive: true });
+    }
+    
+    // 還原資料庫
+    const newDbPath = path.join(tempExtractPath, 'database', 'app.db');
+    if (fs.existsSync(newDbPath)) {
+      // 確保資料目錄存在
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+      fs.copyFileSync(newDbPath, currentDbPath);
+      console.log('資料庫已還原');
+    }
+    
+    // 還原上傳檔案
+    const newUploadsPath = path.join(tempExtractPath, 'uploads');
+    if (fs.existsSync(newUploadsPath)) {
+      // 刪除現有上傳檔案
+      if (fs.existsSync(currentUploadsPath)) {
+        fs.rmSync(currentUploadsPath, { recursive: true, force: true });
+      }
+      // 複製新的上傳檔案
+      fs.cpSync(newUploadsPath, currentUploadsPath, { recursive: true });
+      console.log('上傳檔案已還原');
+    }
+    
+    // 記錄操作
+    logOperation(
+      req.session.user.id,
+      req.session.user.username,
+      'import_all_data',
+      '匯入完整系統資料',
+      `匯入檔案: ${uploadedFile.originalname}, 備份位置: ${currentBackupPath}`,
+      req
+    );
+    
+    // 清理臨時檔案
+    fs.rmSync(uploadedFile.path, { force: true });
+    fs.rmSync(tempExtractPath, { recursive: true, force: true });
+    
+    res.json({ 
+      success: true, 
+      message: '資料匯入完成！系統已還原到備份狀態。',
+      importInfo: exportInfo,
+      backupLocation: currentBackupPath
+    });
+    
+  } catch (error) {
+    console.error('資料匯入錯誤:', error);
+    
+    // 清理臨時檔案
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.rmSync(req.file.path, { force: true });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: '資料匯入失敗', 
+      error: error.message 
+    });
+  }
+});
+
 app.get('/dashboard', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'page', 'dashboard.html'));
 });

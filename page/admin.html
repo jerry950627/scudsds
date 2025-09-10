@@ -315,6 +315,67 @@
           </div>
         </div>
       </div>
+
+      <!-- 資料維護管理 -->
+      <div class="row mt-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-shield-check"></i> 資料維護管理</h5>
+            </div>
+            <div class="card-body">
+              <!-- 資料匯出區域 -->
+              <div class="row mb-4">
+                <div class="col-12">
+                  <h6><i class="bi bi-download"></i> 資料匯出</h6>
+                  <p class="text-muted small">下載包含所有資料庫和檔案的完整備份</p>
+                  <button type="button" class="btn btn-success" id="exportAllBtn">
+                    <i class="bi bi-file-earmark-zip"></i> 下載完整資料備份
+                  </button>
+                  <div id="exportProgress" class="mt-2" style="display: none;">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                      <span class="visually-hidden">匯出中...</span>
+                    </div>
+                    <span class="ms-2">正在打包資料，請稍候...</span>
+                  </div>
+                </div>
+              </div>
+              
+              <hr>
+              
+              <!-- 資料匯入區域 -->
+              <div class="row">
+                <div class="col-12">
+                  <h6><i class="bi bi-upload"></i> 資料匯入</h6>
+                  <p class="text-muted small">上傳之前匯出的資料備份檔案來還原系統</p>
+                  
+                  <div class="mb-3">
+                    <label for="importFile" class="form-label">選擇備份檔案 (ZIP格式)</label>
+                    <input type="file" class="form-control" id="importFile" accept=".zip" />
+                    <div class="form-text">請選擇之前匯出的 ZIP 備份檔案</div>
+                  </div>
+                  
+                  <button type="button" class="btn btn-warning" id="importAllBtn" disabled>
+                    <i class="bi bi-upload"></i> 匯入並還原資料
+                  </button>
+                  
+                  <div id="importProgress" class="mt-2" style="display: none;">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                      <span class="visually-hidden">匯入中...</span>
+                    </div>
+                    <span class="ms-2">正在還原資料，請稍候...</span>
+                  </div>
+                  
+                  <div class="alert alert-warning mt-3" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>注意：</strong>匯入資料會覆蓋現有的所有資料。系統會自動備份現有資料到 backups 目錄。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -361,6 +422,11 @@
         await loadUsersList();
         
         console.log('✅ 系統管理頁面初始化完成');
+        
+        // 資料匯出/匯入功能事件監聽器
+        document.getElementById('exportAllBtn').addEventListener('click', exportAllData);
+        document.getElementById('importAllBtn').addEventListener('click', importAllData);
+        document.getElementById('importFile').addEventListener('change', handleFileSelect);
         
       } catch (error) {
         console.error('初始化錯誤:', error);
@@ -532,6 +598,127 @@
       }
     }
 
+    // 資料匯出/匯入相關函數
+    async function exportAllData() {
+      const btn = document.getElementById('exportAllBtn');
+      const progress = document.getElementById('exportProgress');
+      
+      try {
+        btn.disabled = true;
+        progress.style.display = 'block';
+        
+        const response = await fetch('/api/admin/export-all', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          
+          // 生成檔案名稱
+          const now = new Date();
+          const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+          a.download = `scu-ds-backup-${timestamp}.zip`;
+          
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          
+          showMessage('資料匯出成功！檔案已開始下載', 'success');
+        } else {
+          const result = await response.json();
+          showMessage(result.message || '資料匯出失敗', 'danger');
+        }
+      } catch (error) {
+        console.error('資料匯出錯誤:', error);
+        showMessage('資料匯出時發生錯誤', 'danger');
+      } finally {
+        btn.disabled = false;
+        progress.style.display = 'none';
+      }
+    }
+    
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      const importBtn = document.getElementById('importAllBtn');
+      
+      if (file) {
+        // 檢查檔案副檔名和MIME類型
+        const fileName = file.name.toLowerCase();
+        const isZipFile = fileName.endsWith('.zip') || 
+                         file.type === 'application/zip' || 
+                         file.type === 'application/x-zip-compressed';
+        
+        if (isZipFile) {
+          importBtn.disabled = false;
+          console.log('檔案已選擇:', file.name, '類型:', file.type);
+        } else {
+          importBtn.disabled = true;
+          showMessage('請選擇 ZIP 格式的備份檔案', 'danger');
+        }
+      } else {
+        importBtn.disabled = true;
+      }
+    }
+    
+    async function importAllData() {
+      const fileInput = document.getElementById('importFile');
+      const file = fileInput.files[0];
+      const btn = document.getElementById('importAllBtn');
+      const progress = document.getElementById('importProgress');
+      
+      if (!file) {
+        showMessage('請先選擇要匯入的備份檔案', 'danger');
+        return;
+      }
+      
+      // 確認對話框
+      if (!confirm('確定要匯入此備份檔案嗎？\n\n注意：這將會覆蓋現有的所有資料，系統會自動備份現有資料。\n\n此操作無法復原，請確認您已了解風險。')) {
+        return;
+      }
+      
+      try {
+        btn.disabled = true;
+        progress.style.display = 'block';
+        
+        const formData = new FormData();
+        formData.append('backup', file);
+        
+        const response = await fetch('/api/admin/import-all', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          showMessage('資料匯入成功！頁面將重新載入', 'success');
+          
+          // 清空檔案選擇
+          fileInput.value = '';
+          btn.disabled = true;
+          
+          // 延遲重新載入頁面
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        } else {
+          showMessage(result.message || '資料匯入失敗', 'danger');
+        }
+      } catch (error) {
+        console.error('資料匯入錯誤:', error);
+        showMessage('資料匯入時發生錯誤', 'danger');
+      } finally {
+        btn.disabled = false;
+        progress.style.display = 'none';
+      }
+    }
+
     // 顯示訊息
     function showMessage(message, type = 'info') {
       const messageContainer = document.getElementById('messageContainer');
@@ -541,7 +728,6 @@
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
       `;
-      
       messageContainer.appendChild(alertDiv);
       
       // 自動移除訊息
