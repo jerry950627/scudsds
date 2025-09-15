@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -193,8 +194,14 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session 配置 - 針對 Render 部署優化
+// Session 配置 - 針對 Render 部署優化，使用 SQLite 作為 session store
 app.use(session({
+  store: new SQLiteStore({
+    db: 'sessions.db',
+    dir: dataDir, // 使用與主數據庫相同的目錄
+    table: 'sessions',
+    concurrentDB: true
+  }),
   secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
