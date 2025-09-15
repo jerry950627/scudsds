@@ -144,6 +144,75 @@
 
       .main-content {
         margin-left: 0;
+        padding: 15px;
+      }
+
+      /* 手機端標題和按鈕區域響應式 */
+      .header-section {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 15px;
+      }
+
+      .header-section h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0;
+      }
+
+      .button-group {
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .button-group .btn {
+        flex: 1;
+        min-width: calc(50% - 4px);
+        margin-right: 0 !important;
+        font-size: 0.875rem;
+        padding: 8px 12px;
+      }
+
+      /* 搜尋區域響應式 */
+       .search-buttons {
+         flex-direction: column;
+         width: 100%;
+         margin-top: 15px;
+       }
+
+       .search-buttons .btn {
+         width: 100%;
+         margin-right: 0 !important;
+         margin-bottom: 8px;
+       }
+
+       .search-buttons .btn:last-child {
+         margin-bottom: 0;
+       }
+
+      /* 廠商卡片響應式 */
+      .vendor-card .card-body {
+        padding: 15px;
+      }
+
+      .vendor-card .card-title {
+        font-size: 1rem;
+      }
+    }
+
+    @media (max-width: 575.98px) {
+      .button-group .btn {
+        flex: 1;
+        min-width: 100%;
+        margin-bottom: 8px;
+      }
+
+      .main-content {
+        padding: 10px;
+      }
+
+      .header-section h1 {
+        font-size: 1.25rem;
       }
     }
 
@@ -235,11 +304,14 @@
   <!-- 主要內容 -->
   <div class="main-content">
     <div class="container-fluid">
-      <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-4 header-section">
         <h1><i class="bi bi-people me-2"></i>公關部 - 廠商資料管理</h1>
-        <div>
+        <div class="d-flex align-items-center button-group">
           <button class="btn btn-danger me-2" onclick="deleteAllVendors()">
             <i class="bi bi-trash me-1"></i>一鍵刪除
+          </button>
+          <button class="btn btn-info me-2" onclick="downloadExcelTemplate()">
+            <i class="bi bi-download me-1"></i>下載範本
           </button>
           <button class="btn btn-success me-2" onclick="document.getElementById('excelFileInput').click()">
             <i class="bi bi-file-earmark-excel me-1"></i>匯入Excel
@@ -267,12 +339,14 @@
               <input type="text" class="form-control" id="filterType" placeholder="輸入商品種類...">
             </div>
             <div class="col-md-4 d-flex align-items-end">
-              <button class="btn btn-outline-primary me-2" onclick="searchVendors()">
-                <i class="bi bi-search me-1"></i>搜尋
-              </button>
-              <button class="btn btn-outline-secondary" onclick="clearFilters()">
-                <i class="bi bi-arrow-clockwise me-1"></i>清除
-              </button>
+              <div class="d-flex w-100 search-buttons">
+                <button class="btn btn-outline-primary me-2" onclick="searchVendors()">
+                  <i class="bi bi-search me-1"></i>搜尋
+                </button>
+                <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                  <i class="bi bi-arrow-clockwise me-1"></i>清除
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -444,8 +518,28 @@
           e.preventDefault();
           if (confirm('確定要登出嗎？')) {
             try {
+              // 檢查是否有記住數據需要清除
+              const rememberData = localStorage.getItem('rememberData');
+              let clearRememberToken = false;
+              let deviceFingerprint = null;
+              
+              if (rememberData) {
+                const data = JSON.parse(rememberData);
+                clearRememberToken = true;
+                deviceFingerprint = data.deviceFingerprint;
+                // 清除本地記住數據
+                localStorage.removeItem('rememberData');
+              }
+              
               await fetch('/auth/logout', {
                 method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  clearRememberToken,
+                  deviceFingerprint
+                }),
                 credentials: 'include'
               });
             } catch (error) {
@@ -848,6 +942,58 @@
       // 顯示匯入結果
       const resultMessage = `匯入完成！\n成功：${successCount} 筆\n失敗：${failCount} 筆`;
       alert(resultMessage);
+    }
+
+    // 下載Excel範本
+    function downloadExcelTemplate() {
+      // 創建範本數據
+      const templateData = [
+        ['廠商名稱', '商品種類', '聯絡方式(Gmail)', '備註'],
+        ['範例廠商A', '食品', 'example1@gmail.com', '提供各種零食飲料'],
+        ['範例廠商B', '文具', 'example2@gmail.com', '辦公用品供應商'],
+        ['範例廠商C', '服飾', 'example3@gmail.com', '學生服裝訂製']
+      ];
+      
+      // 創建工作簿
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(templateData);
+      
+      // 設置欄位寬度
+      ws['!cols'] = [
+        { width: 20 }, // 廠商名稱
+        { width: 15 }, // 商品種類
+        { width: 25 }, // 聯絡方式
+        { width: 30 }  // 備註
+      ];
+      
+      // 設置標題行樣式（如果需要的話）
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+        if (!ws[cellAddress]) continue;
+        ws[cellAddress].s = {
+          font: { bold: true },
+          fill: { fgColor: { rgb: "FFB6C1" } }
+        };
+      }
+      
+      // 添加工作表到工作簿
+      XLSX.utils.book_append_sheet(wb, ws, '廠商資料範本');
+      
+      // 生成文件名（包含當前日期）
+      const today = new Date();
+      const dateStr = today.getFullYear() + '-' + 
+                     String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                     String(today.getDate()).padStart(2, '0');
+      const filename = `廠商資料匯入範本_${dateStr}.xlsx`;
+      
+      // 下載文件
+      XLSX.writeFile(wb, filename);
+      
+      // 顯示使用說明
+      setTimeout(() => {
+        alert('Excel範本已下載！\n\n使用說明：\n1. 請按照範本格式填寫廠商資料\n2. 必填欄位：廠商名稱、商品種類、聯絡方式(Gmail)\n3. 聯絡方式請使用有效的Email格式\n4. 填寫完成後可使用「匯入Excel」功能上傳');
+      }, 500);
     }
 
     // 一鍵刪除所有廠商

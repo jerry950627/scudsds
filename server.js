@@ -2,6 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -136,6 +137,23 @@ db.run(`CREATE TABLE IF NOT EXISTS meeting_records (
   }
 });
 
+// 初始化記住令牌資料表
+db.run(`CREATE TABLE IF NOT EXISTS remember_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  device_fingerprint TEXT NOT NULL,
+  remember_token TEXT NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users (id)
+)`, (err) => {
+  if (err) {
+    console.error('建立記住令牌資料表失敗:', err);
+  } else {
+    console.log('✅ 記住令牌資料表檢查完成');
+  }
+});
+
 // 啟動時檢查 users 資料表是否存在（不自動建立）
 db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users'", (err, row) => {
   if (err) {
@@ -157,10 +175,10 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // 暫時設為 false 以解決 Render HTTPS 問題
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000
+    secure: process.env.NODE_ENV === 'production', // 生產環境強制HTTPS
+    httpOnly: true,                                // 防止XSS攻擊
+    sameSite: 'strict',                           // 防止CSRF攻擊
+    maxAge: 24 * 60 * 60 * 1000                  // 24小時過期
   }
 }));
 
@@ -177,7 +195,7 @@ app.get('/', (req, res) => {
 // 登入 API
 app.post('/auth/login', (req, res) => {
   console.log('登入請求:', { username: req.body.username, hasPassword: !!req.body.password });
-  const { username, password } = req.body;
+  const { username, password, rememberMe, deviceFingerprint } = req.body;
   if (!username || !password) {
     console.log('登入失敗: 缺少帳號或密碼');
     return res.status(400).json({ success: false, message: '請輸入帳號和密碼' });
@@ -214,17 +232,49 @@ app.post('/auth/login', (req, res) => {
       
       console.log('登入成功:', { username: user.username, sessionId: req.sessionID });
       
+      // 處理記住我功能
+      let rememberToken = null;
+      if (rememberMe && deviceFingerprint) {
+        rememberToken = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7天後過期
+        
+        // 先清除該用戶在該設備上的舊記住令牌
+        db.run(`DELETE FROM remember_tokens WHERE user_id = ? AND device_fingerprint = ?`, 
+          [user.id, deviceFingerprint], (deleteErr) => {
+            if (deleteErr) {
+              console.error('清除舊記住令牌失敗:', deleteErr);
+            }
+            
+            // 插入新的記住令牌
+            db.run(`
+              INSERT INTO remember_tokens 
+              (user_id, device_fingerprint, remember_token, expires_at) 
+              VALUES (?, ?, ?, ?)
+            `, [user.id, deviceFingerprint, rememberToken, expiresAt.toISOString()], (insertErr) => {
+              if (insertErr) {
+                console.error('保存記住令牌失敗:', insertErr);
+              } else {
+                console.log('記住令牌已保存:', { userId: user.id, deviceFingerprint });
+              }
+            });
+          });
+      }
+      
       // 記錄登入操作
       logOperation(
         user.id,
         user.username,
         'login',
         `用戶 ${user.username} 登入系統`,
-        `角色: ${user.role}`,
+        `角色: ${user.role}${rememberMe ? ', 啟用記住功能' : ''}`,
         req
       );
       
-      res.json({ success: true, user: req.session.user });
+      res.json({ 
+        success: true, 
+        user: req.session.user,
+        rememberToken: rememberToken
+      });
     });
   });
 });
@@ -238,9 +288,73 @@ app.get('/auth/check', (req, res) => {
   }
 });
 
+// 自動登入端點
+app.post('/auth/auto-login', (req, res) => {
+  const { username, deviceFingerprint, rememberToken } = req.body;
+  
+  if (!username || !deviceFingerprint || !rememberToken) {
+    return res.status(400).json({ success: false, message: '缺少必要參數' });
+  }
+  
+  db.get(`
+    SELECT u.*, rt.expires_at 
+    FROM users u 
+    JOIN remember_tokens rt ON u.id = rt.user_id 
+    WHERE u.username = ? 
+    AND rt.device_fingerprint = ? 
+    AND rt.remember_token = ? 
+    AND rt.expires_at > datetime('now')
+  `, [username, deviceFingerprint, rememberToken], (err, row) => {
+    if (err) {
+      console.error('自動登入查詢錯誤:', err);
+      return res.status(500).json({ success: false, message: '伺服器錯誤' });
+    }
+    
+    if (row) {
+      req.session.user = {
+        id: row.id,
+        name: row.name,
+        username: row.username,
+        student_id: row.student_id,
+        role: row.role
+      };
+      
+      console.log('自動登入成功:', { username: row.username, sessionId: req.sessionID });
+      
+      // 記錄自動登入操作
+      logOperation(
+        row.id,
+        row.username,
+        'auto-login',
+        `用戶 ${row.username} 通過記住令牌自動登入`,
+        `角色: ${row.role}, 設備指紋: ${deviceFingerprint.substring(0, 8)}...`,
+        req
+      );
+      
+      res.json({ success: true, message: '自動登入成功', user: req.session.user });
+    } else {
+      console.log('自動登入失敗: 記住狀態已過期或無效 -', username);
+      res.status(401).json({ success: false, message: '記住狀態已過期或無效' });
+    }
+  });
+});
+
 // 登出
 app.post('/auth/logout', (req, res) => {
   const user = req.session.user;
+  const { clearRememberToken, deviceFingerprint } = req.body;
+  
+  // 如果請求清除記住令牌
+  if (clearRememberToken && user && deviceFingerprint) {
+    db.run(`DELETE FROM remember_tokens WHERE user_id = ? AND device_fingerprint = ?`, 
+      [user.id, deviceFingerprint], (err) => {
+        if (err) {
+          console.error('清除記住令牌失敗:', err);
+        } else {
+          console.log('記住令牌已清除:', { userId: user.id, deviceFingerprint });
+        }
+      });
+  }
   
   req.session.destroy(err => {
     if (err) return res.status(500).json({ success: false, message: '登出失敗' });
@@ -251,7 +365,7 @@ app.post('/auth/logout', (req, res) => {
         user.id,
         user.username,
         'logout',
-        `用戶 ${user.username} 登出系統`,
+        `用戶 ${user.username} 登出系統${clearRememberToken ? ' (清除記住令牌)' : ''}`,
         null,
         req
       );
@@ -660,23 +774,31 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB 限制
+    fileSize: req => {
+      // 影片檔案限制50MB，其他檔案限制10MB
+      return req.path.includes('video') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    }
   },
   fileFilter: function (req, file, cb) {
-    // 根據請求路徑決定允許的檔案類型
-    let allowedTypes;
-    if (req.path.includes('/design/')) {
-      // 設計檔案：支援圖片、影片和文件格式
-      allowedTypes = /\.(pdf|doc|docx|jpg|jpeg|png|gif|mp4|mov|avi)$/i;
-    } else {
-      // 活動檔案：只支援文件格式
-      allowedTypes = /\.(pdf|doc|docx|xls|xlsx)$/i;
-    }
+    // 檢查副檔名
+    const allowedExtensions = /\.(pdf|doc|docx|jpg|jpeg|png|gif|mp4|mov|avi)$/i;
     
-    if (allowedTypes.test(path.extname(file.originalname))) {
+    // 檢查MIME類型
+    const allowedMimes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+      'video/mp4', 'video/quicktime', 'video/x-msvideo'
+    ];
+    
+    const hasValidExtension = allowedExtensions.test(file.originalname);
+    const hasValidMime = allowedMimes.includes(file.mimetype);
+    
+    if (hasValidExtension && hasValidMime) {
       cb(null, true);
     } else {
-      cb(new Error('不支援的檔案格式'));
+      cb(new Error('不允許的檔案類型'), false);
     }
   }
 });
@@ -865,6 +987,88 @@ app.get('/api/activity/download/:fileId', requireAuth, (req, res) => {
   );
 });
 
+// 預覽檔案
+app.get('/api/activity/preview/:fileId', requireAuth, (req, res) => {
+  const { fileId } = req.params;
+  
+  db.get(
+    'SELECT * FROM activity_files WHERE id = ?',
+    [fileId],
+    (err, file) => {
+      if (err) {
+        console.error('查詢檔案錯誤:', err);
+        return res.status(500).json({ message: '查詢檔案失敗' });
+      }
+      
+      if (!file) {
+        return res.status(404).json({ message: '檔案不存在' });
+      }
+      
+      const filePath = path.join(activityDir, file.filename);
+      
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: '檔案不存在於伺服器' });
+      }
+      
+      try {
+        // 獲取檔案統計信息
+        const stat = fs.statSync(filePath);
+        
+        // 根據檔案類型設置適當的 Content-Type
+        let contentType = file.file_type || 'application/octet-stream';
+        const fileExtension = file.original_name.split('.').pop().toLowerCase();
+        
+        // 針對常見檔案類型設置正確的 MIME 類型
+        const mimeTypes = {
+          'txt': 'text/plain; charset=utf-8',
+          'md': 'text/markdown; charset=utf-8',
+          'json': 'application/json; charset=utf-8',
+          'xml': 'application/xml; charset=utf-8',
+          'csv': 'text/csv; charset=utf-8',
+          'pdf': 'application/pdf',
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'png': 'image/png',
+          'gif': 'image/gif',
+          'svg': 'image/svg+xml',
+          'webp': 'image/webp'
+        };
+        
+        if (mimeTypes[fileExtension]) {
+          contentType = mimeTypes[fileExtension];
+        }
+        
+        // 設置響應標頭
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Length', stat.size);
+        res.setHeader('Cache-Control', 'no-cache');
+        
+        // 對於文字檔案，限制大小以避免記憶體問題
+        if (contentType.startsWith('text/') && stat.size > 1024 * 1024) { // 1MB 限制
+          return res.status(413).json({ message: '檔案太大無法預覽' });
+        }
+        
+        // 創建文件流並處理錯誤
+        const fileStream = fs.createReadStream(filePath);
+        
+        fileStream.on('error', (streamErr) => {
+          console.error('文件流錯誤:', streamErr);
+          if (!res.headersSent) {
+            res.status(500).json({ message: '文件讀取失敗' });
+          }
+        });
+        
+        // 將文件流傳送到響應
+        fileStream.pipe(res);
+        
+      } catch (statErr) {
+        console.error('獲取檔案信息錯誤:', statErr);
+        return res.status(500).json({ message: '檔案讀取失敗' });
+      }
+    }
+  );
+});
+
 // 刪除檔案
 app.delete('/api/activity/delete/:fileId', requireAuth, (req, res) => {
   const { fileId } = req.params;
@@ -888,26 +1092,24 @@ app.delete('/api/activity/delete/:fileId', requireAuth, (req, res) => {
         return res.status(403).json({ message: '沒有權限刪除此檔案' });
       }
       
-      // 從資料庫刪除記錄
-      db.run(
-        'DELETE FROM activity_files WHERE id = ?',
-        [fileId],
-        function(err) {
-          if (err) {
-            console.error('刪除檔案記錄錯誤:', err);
-            return res.status(500).json({ message: '刪除檔案記錄失敗' });
-          }
-          
-          // 刪除實際檔案
-          const filePath = path.join(activityDir, file.filename);
-          if (fs.existsSync(filePath)) {
-            try {
-              fs.unlinkSync(filePath);
-            } catch (deleteErr) {
-              console.error('刪除實際檔案錯誤:', deleteErr);
-              // 即使刪除實際檔案失敗，也返回成功（因為資料庫記錄已刪除）
+      // 事務式處理，確保一致性
+      try {
+        // 先刪除實體檔案
+        const filePath = path.join(activityDir, file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+        
+        // 檔案刪除成功後，再刪除資料庫記錄
+        db.run(
+          'DELETE FROM activity_files WHERE id = ?',
+          [fileId],
+          function(err) {
+            if (err) {
+              // 如果資料庫刪除失敗，需要記錄並考慮是否需要恢復檔案
+              console.error('資料庫刪除失敗:', err);
+              return res.status(500).json({ success: false, message: '刪除失敗' });
             }
-          }
           
           // 記錄操作日誌
           logOperation(
@@ -927,6 +1129,11 @@ app.delete('/api/activity/delete/:fileId', requireAuth, (req, res) => {
           res.json({ success: true, message: '檔案已刪除' });
         }
       );
+      
+    } catch (deleteErr) {
+      console.error('檔案刪除失敗:', deleteErr);
+      return res.status(500).json({ success: false, message: '檔案刪除失敗' });
+    }
     }
   );
 });
@@ -1093,6 +1300,16 @@ app.get('/api/design/gallery', requireAuth, (req, res) => {
   let params = [];
   
   if (category && category !== 'all') {
+    // 根據前端傳來的category參數映射到正確的type值
+    let typeValue;
+    if (category === 'uniform') {
+      typeValue = 'uniform';
+    } else if (category === 'post') {
+      typeValue = 'design';
+    } else {
+      typeValue = category;
+    }
+    
     query = `
       SELECT d.*, u.username 
       FROM design_files d 
@@ -1100,7 +1317,7 @@ app.get('/api/design/gallery', requireAuth, (req, res) => {
       WHERE d.type = ?
       ORDER BY d.upload_date DESC
     `;
-    params = [category];
+    params = [typeValue];
   }
   
   console.log('🔍 查詢設計作品:', { category, query: query.replace(/\s+/g, ' ').trim() });
@@ -1166,33 +1383,28 @@ app.delete('/api/design/delete/:fileId', requireAuth, (req, res) => {
       
       console.log('權限檢查通過，開始刪除');
       
-      // 從資料庫刪除記錄
-      db.run(
-        'DELETE FROM design_files WHERE id = ?',
-        [fileId],
-        function(err) {
-          if (err) {
-            console.error('刪除設計作品記錄錯誤:', err);
-            return res.status(500).json({ message: '刪除設計作品記錄失敗' });
-          }
-          
-          console.log('資料庫記錄已刪除，影響行數:', this.changes);
-          
-          // 刪除實際檔案
-          const filePath = path.join(designDir, file.filename);
-          console.log('嘗試刪除檔案:', filePath);
-          
-          if (fs.existsSync(filePath)) {
-            try {
-              fs.unlinkSync(filePath);
-              console.log('實際檔案已刪除');
-            } catch (deleteErr) {
-              console.error('刪除實際檔案錯誤:', deleteErr);
-              // 即使刪除實際檔案失敗，也返回成功（因為資料庫記錄已刪除）
+      // 事務式處理，確保一致性
+      try {
+        // 先刪除實體檔案
+        const filePath = path.join(designDir, file.filename);
+        console.log('嘗試刪除檔案:', filePath);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log('實際檔案已刪除');
+        }
+        
+        // 檔案刪除成功後，再刪除資料庫記錄
+        db.run(
+          'DELETE FROM design_files WHERE id = ?',
+          [fileId],
+          function(err) {
+            if (err) {
+              // 如果資料庫刪除失敗，需要記錄並考慮是否需要恢復檔案
+              console.error('資料庫刪除失敗:', err);
+              return res.status(500).json({ success: false, message: '刪除失敗' });
             }
-          } else {
-            console.log('實際檔案不存在於:', filePath);
-          }
+            
+            console.log('資料庫記錄已刪除，影響行數:', this.changes);
           
           // 記錄操作日誌
           logOperation(
@@ -1215,6 +1427,11 @@ app.delete('/api/design/delete/:fileId', requireAuth, (req, res) => {
           res.json({ success: true, message: '設計作品已刪除' });
         }
       );
+      
+    } catch (deleteErr) {
+      console.error('檔案刪除失敗:', deleteErr);
+      return res.status(500).json({ success: false, message: '檔案刪除失敗' });
+    }
     }
   );
 });
@@ -1273,6 +1490,66 @@ app.get('/api/design/download/:fileId', requireAuth, (req, res) => {
         console.error('獲取設計作品信息錯誤:', statErr);
         return res.status(500).json({ message: '檔案讀取失敗' });
       }
+    }
+  );
+});
+
+// 設計作品預覽端點
+app.get('/api/design/preview/:fileId', requireAuth, (req, res) => {
+  const fileId = req.params.fileId;
+  
+  db.get(
+    'SELECT * FROM design_files WHERE id = ?',
+    [fileId],
+    (err, file) => {
+      if (err) {
+        console.error('查詢設計作品錯誤:', err);
+        return res.status(500).json({ message: '查詢檔案失敗' });
+      }
+      
+      if (!file) {
+        return res.status(404).json({ message: '檔案不存在' });
+      }
+      
+      const filePath = path.join(designDir, file.filename);
+      
+      // 檢查檔案是否存在
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: '檔案不存在' });
+      }
+      
+      // 設定 MIME 類型
+      const ext = path.extname(file.original_name).toLowerCase();
+      let mimeType = 'application/octet-stream';
+      
+      if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+        mimeType = `image/${ext.slice(1)}`;
+      } else if (ext === '.pdf') {
+        mimeType = 'application/pdf';
+      } else if (['.txt', '.md'].includes(ext)) {
+        mimeType = 'text/plain';
+      } else if (['.html', '.htm'].includes(ext)) {
+        mimeType = 'text/html';
+      } else if (ext === '.json') {
+        mimeType = 'application/json';
+      }
+      
+      // 設定響應頭
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.original_name)}"`);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      
+      // 創建檔案流並傳送
+      const fileStream = fs.createReadStream(filePath);
+      
+      fileStream.on('error', (streamErr) => {
+        console.error('檔案流錯誤:', streamErr);
+        if (!res.headersSent) {
+          res.status(500).json({ message: '檔案讀取失敗' });
+        }
+      });
+      
+      fileStream.pipe(res);
     }
   );
 });
@@ -2625,8 +2902,18 @@ app.use((err, req, res, next) => {
 
 // 一般錯誤處理
 app.use((err, req, res, next) => {
-  console.error('伺服器錯誤:', err);
-  res.status(500).json({ message: '伺服器內部錯誤' });
+  console.error('操作失敗:', err);
+  
+  // 向用戶回傳有意義的錯誤訊息
+  if (!res.headersSent) {
+    res.status(500).json({
+      success: false,
+      message: '操作失敗，請稍後再試'
+    });
+  }
+  
+  // 確保系統狀態一致性
+  // 這裡可以添加清理或回滾邏輯
 });
 
 // 404 處理（必須放在最後）
@@ -2634,9 +2921,25 @@ app.use((req, res) => {
   res.status(404).json({ message: '頁面不存在' });
 });
 
+// 定期清理過期記住令牌
+function cleanupExpiredTokens() {
+  db.run(`DELETE FROM remember_tokens WHERE expires_at < datetime('now')`, (err) => {
+    if (err) {
+      console.error('清理過期記住令牌失敗:', err);
+    } else {
+      console.log('已清理過期記住令牌');
+    }
+  });
+}
+
+// 每小時執行一次清理
+setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
+
 // 啟動
 app.listen(PORT, () => {
   console.log(`🚀 伺服器已啟動: http://localhost:${PORT}`);
+  // 伺服器啟動時立即執行一次清理
+  cleanupExpiredTokens();
 });
 
 // 優雅關閉

@@ -108,8 +108,11 @@
             const passwordInput = document.getElementById('password');
             const rememberMeCheckbox = document.getElementById('rememberMe');
 
-            // 載入已保存的帳號密碼
-            loadSavedCredentials();
+            // 嘗試自動登入
+            await tryAutoLogin();
+            
+            // 載入記住數據
+            loadRememberData();
 
             // 登入表單處理
             form.addEventListener('submit', async function(e) {
@@ -118,6 +121,13 @@
                 const formData = new URLSearchParams();
                 formData.append('username', document.getElementById('username').value.trim());
                 formData.append('password', document.getElementById('password').value);
+                
+                // 如果勾選記住我，發送相關數據
+                if (rememberMeCheckbox.checked) {
+                    formData.append('rememberMe', 'true');
+                    formData.append('deviceFingerprint', generateDeviceFingerprint());
+                }
+                
                 try {
                     const resp = await fetch('/auth/login', {
                         method: 'POST',
@@ -126,11 +136,12 @@
                         credentials: 'include'
                     });
                     if (resp.ok) {
+                        const data = await resp.json();
                         // 處理記住我功能
-                        if (rememberMeCheckbox.checked) {
-                            saveCredentials(usernameInput.value, passwordInput.value);
+                        if (rememberMeCheckbox.checked && data.rememberToken) {
+                            saveRememberMe(usernameInput.value, data.rememberToken);
                         } else {
-                            clearSavedCredentials();
+                            clearRememberData();
                         }
                         window.location.href = '/dashboard';
                     } else {
@@ -161,39 +172,117 @@
                 console.log('認證檢查失敗，顯示登入頁面');
             }
 
-            // 保存帳號密碼到本地存儲
-            function saveCredentials(username, password) {
-                try {
-                    localStorage.setItem('rememberedUsername', username);
-                    localStorage.setItem('rememberedPassword', btoa(password)); // 簡單編碼
-                } catch (error) {
-                    console.log('無法保存帳號密碼');
+            // 生成設備指紋
+            function generateDeviceFingerprint() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillText('Device fingerprint', 2, 2);
+                
+                return btoa(JSON.stringify({
+                    userAgent: navigator.userAgent,
+                    language: navigator.language,
+                    platform: navigator.platform,
+                    screen: `${screen.width}x${screen.height}`,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    canvas: canvas.toDataURL()
+                })).substring(0, 32);
+            }
+
+            // 安全的記住功能 - 保存記住數據
+            function saveRememberMe(username, rememberToken) {
+                if (document.getElementById('rememberMe').checked) {
+                    const deviceFingerprint = generateDeviceFingerprint();
+                    localStorage.setItem('rememberData', JSON.stringify({
+                        username: username,
+                        deviceFingerprint: deviceFingerprint,
+                        rememberToken: rememberToken,
+                        timestamp: Date.now()
+                    }));
                 }
             }
 
-            // 載入已保存的帳號密碼
-            function loadSavedCredentials() {
+            // 載入記住數據
+            function loadRememberData() {
+                const saved = localStorage.getItem('rememberData');
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        // 檢查是否在7天內
+                        if (Date.now() - data.timestamp < 7 * 24 * 60 * 60 * 1000) {
+                            document.getElementById('username').value = data.username;
+                            document.getElementById('rememberMe').checked = true;
+                            return {
+                                username: data.username,
+                                deviceFingerprint: data.deviceFingerprint,
+                                rememberToken: data.rememberToken
+                            };
+                        } else {
+                            localStorage.removeItem('rememberData');
+                        }
+                    } catch (error) {
+                        console.log('無法載入記住數據');
+                        localStorage.removeItem('rememberData');
+                    }
+                }
+                return null;
+            }
+
+            // 清除記住數據
+            function clearRememberData() {
                 try {
-                    const savedUsername = localStorage.getItem('rememberedUsername');
-                    const savedPassword = localStorage.getItem('rememberedPassword');
+                    localStorage.removeItem('rememberData');
+                } catch (error) {
+                    console.log('無法清除記住數據');
+                }
+            }
+            
+            // 嘗試自動登入
+            async function tryAutoLogin() {
+                try {
+                    const rememberData = localStorage.getItem('rememberData');
+                    if (!rememberData) return;
                     
-                    if (savedUsername && savedPassword) {
-                        usernameInput.value = savedUsername;
-                        passwordInput.value = atob(savedPassword); // 解碼
-                        rememberMeCheckbox.checked = true;
+                    const data = JSON.parse(rememberData);
+                    const currentFingerprint = generateDeviceFingerprint();
+                    
+                    // 檢查設備指紋是否匹配
+                    if (data.deviceFingerprint !== currentFingerprint) {
+                        clearRememberData();
+                        return;
+                    }
+                    
+                    // 檢查是否過期
+                    if (new Date() > new Date(data.expiresAt)) {
+                        clearRememberData();
+                        return;
+                    }
+                    
+                    // 嘗試自動登入
+                    const response = await fetch('/auth/auto-login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            username: data.username,
+                            deviceFingerprint: data.deviceFingerprint,
+                            rememberToken: data.rememberToken
+                        }),
+                        credentials: 'include'
+                    });
+                    
+                    if (response.ok) {
+                        // 自動登入成功，跳轉到儀表板
+                        window.location.href = '/dashboard';
+                    } else {
+                        // 自動登入失敗，清除記住數據
+                        clearRememberData();
                     }
                 } catch (error) {
-                    console.log('無法載入已保存的帳號密碼');
-                }
-            }
-
-            // 清除已保存的帳號密碼
-            function clearSavedCredentials() {
-                try {
-                    localStorage.removeItem('rememberedUsername');
-                    localStorage.removeItem('rememberedPassword');
-                } catch (error) {
-                    console.log('無法清除已保存的帳號密碼');
+                    console.log('自動登入失敗:', error);
+                    clearRememberData();
                 }
             }
         });
