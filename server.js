@@ -169,17 +169,20 @@ db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users'", (er
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session
+// Session 配置 - 針對 Render 部署優化
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
+  name: 'sessionId', // 自定義 session cookie 名稱
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // 生產環境強制HTTPS
-    httpOnly: true,                                // 防止XSS攻擊
-    sameSite: 'strict',                           // 防止CSRF攻擊
-    maxAge: 24 * 60 * 60 * 1000                  // 24小時過期
-  }
+    secure: false, // 在 Render 上暫時關閉 secure，避免 HTTPS 問題
+    httpOnly: true, // 防止 XSS 攻擊
+    sameSite: 'lax', // 改為 lax 以避免過度嚴格的 CSRF 保護
+    maxAge: 24 * 60 * 60 * 1000, // 24小時過期
+    domain: undefined // 讓瀏覽器自動設定 domain
+  },
+  rolling: true // 每次請求都重新設定過期時間
 }));
 
 // 靜態檔案
@@ -2938,6 +2941,13 @@ setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
 // 啟動
 app.listen(PORT, () => {
   console.log(`🚀 伺服器已啟動: http://localhost:${PORT}`);
+  console.log('環境變數:', {
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+    SESSION_SECRET: process.env.SESSION_SECRET ? '已設定' : '未設定'
+  });
+  console.log('資料目錄:', dataDir);
+  console.log('上傳目錄:', uploadsDir);
   // 伺服器啟動時立即執行一次清理
   cleanupExpiredTokens();
 });

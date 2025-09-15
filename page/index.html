@@ -108,7 +108,24 @@
             const passwordInput = document.getElementById('password');
             const rememberMeCheckbox = document.getElementById('rememberMe');
 
-            // 嘗試自動登入
+            // 首先檢查是否已登入
+            try {
+                const response = await fetch('/auth/check', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                if (response.status === 200) {
+                    const data = await response.json();
+                    if (data.authenticated) {
+                        window.location.replace('/dashboard');
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log('認證檢查失敗，繼續載入登入頁面');
+            }
+
+            // 如果未登入，嘗試自動登入
             await tryAutoLogin();
             
             // 載入記住數據
@@ -154,23 +171,6 @@
                     errorDiv.style.display = 'block';
                 }
             });
-
-            // 檢查是否已登入
-            try {
-                const response = await fetch('/auth/check', {
-                    method: 'GET',
-                    credentials: 'include'
-                });
-                if (response.status === 200) {
-                    const data = await response.json();
-                    if (data.authenticated) {
-                        window.location.replace('/dashboard');
-                        return;
-                    }
-                }
-            } catch (error) {
-                console.log('認證檢查失敗，顯示登入頁面');
-            }
 
             // 生成設備指紋
             function generateDeviceFingerprint() {
